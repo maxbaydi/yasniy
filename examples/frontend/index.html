@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YASN Demo: Интернет-магазин</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f4f8fb;
+      --panel: rgba(255, 255, 255, 0.86);
+      --line: #cfdce7;
+      --text: #112338;
+      --muted: #43617c;
+      --accent: #0f766e;
+      --accent-2: #ea580c;
+      --ok: #15803d;
+      --warn: #b45309;
+      --err: #b91c1c;
+      --shadow: 0 18px 40px rgba(17, 35, 56, 0.12);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Manrope", "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 18%, rgba(15, 118, 110, 0.12), transparent 32%),
+        radial-gradient(circle at 86% 20%, rgba(234, 88, 12, 0.12), transparent 36%),
+        linear-gradient(155deg, #f7fbff 0%, #ecf4fa 48%, #f6fbff 100%);
+      min-height: 100vh;
+      padding: 28px 16px 40px;
+    }
+
+    .page {
+      max-width: 1080px;
+      margin: 0 auto;
+      display: grid;
+      gap: 16px;
+    }
+
+    .hero, .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(6px);
+    }
+
+    .hero {
+      padding: 24px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .title {
+      font-size: clamp(1.35rem, 3.6vw, 2rem);
+      line-height: 1.2;
+      font-weight: 800;
+      margin: 0;
+      letter-spacing: 0.01em;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.98rem;
+      max-width: 70ch;
+    }
+
+    .status-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .badge {
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #fff;
+      font-size: 0.86rem;
+      font-weight: 700;
+    }
+
+    .badge.ok { color: var(--ok); border-color: #9fddba; background: #eefcf4; }
+    .badge.warn { color: var(--warn); border-color: #f4d2ad; background: #fff7ec; }
+    .badge.err { color: var(--err); border-color: #f5b4b4; background: #fff0f0; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 16px;
+    }
+
+    .col-7 { grid-column: span 7; }
+    .col-5 { grid-column: span 5; }
+    .col-12 { grid-column: span 12; }
+
+    .panel {
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .panel h2 {
+      margin: 0;
+      font-size: 1.04rem;
+      font-weight: 800;
+      letter-spacing: 0.01em;
+    }
+
+    .muted {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .fields {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+
+    .field.full {
+      grid-column: 1 / -1;
+    }
+
+    .field label {
+      font-size: 0.84rem;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    input, select, button, textarea {
+      font: inherit;
+    }
+
+    input, select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: #fff;
+      color: var(--text);
+      outline: none;
+    }
+
+    input:focus, select:focus {
+      border-color: #7eb9b3;
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.13);
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: 0;
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .btn-main {
+      color: #fff;
+      background: linear-gradient(130deg, #0f766e, #0e8f84);
+      box-shadow: 0 10px 18px rgba(15, 118, 110, 0.24);
+    }
+
+    .btn-ghost {
+      background: #fff;
+      color: var(--text);
+      border: 1px solid var(--line);
+    }
+
+    .catalog {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+    }
+
+    .product {
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 14px;
+      padding: 12px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .product h3 {
+      margin: 0;
+      font-size: 0.96rem;
+      font-weight: 800;
+    }
+
+    .product p {
+      margin: 0;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    .result {
+      display: grid;
+      gap: 8px;
+    }
+
+    .result-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 9px 10px;
+      border-radius: 10px;
+      background: #f8fbfd;
+      border: 1px solid #dde9f3;
+      font-size: 0.92rem;
+    }
+
+    .result-line strong {
+      font-weight: 800;
+    }
+
+    .log {
+      margin: 0;
+      white-space: pre-wrap;
+      font-size: 0.9rem;
+      border: 1px dashed #d9e6ef;
+      border-radius: 12px;
+      background: #fbfdff;
+      padding: 10px 12px;
+      color: #324f69;
+      min-height: 56px;
+    }
+
+    @media (max-width: 900px) {
+      .col-7, .col-5 {
+        grid-column: span 12;
+      }
+      .fields {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <h1 class="title">YASN Fullstack Demo: backend на ЯСНОМ + HTML frontend</h1>
+      <p class="subtitle">
+        Пример модульного backend: каталог, валидация заказа, промокоды, доставка и расчет чека.
+        Фронтенд дергает функции через `POST /call`.
+      </p>
+      <div class="status-row">
+        <span id="badgeHealth" class="badge warn">backend: проверка...</span>
+        <span id="badgeFuncs" class="badge">functions: --</span>
+      </div>
+    </section>
+
+    <section class="grid">
+      <article class="panel col-7">
+        <h2>Заказ</h2>
+        <p class="muted">Форма вызывает экспортированную функцию <code>рассчитать_заказ</code>.</p>
+        <form id="orderForm" class="fields">
+          <div class="field full">
+            <label for="apiBase">Backend URL</label>
+            <input id="apiBase" type="text" value="http://127.0.0.1:8123">
+          </div>
+
+          <div class="field">
+            <label for="product">Товар</label>
+            <select id="product"></select>
+          </div>
+
+          <div class="field">
+            <label for="qty">Количество</label>
+            <input id="qty" type="number" value="1" min="1" step="1">
+          </div>
+
+          <div class="field">
+            <label for="city">Город</label>
+            <input id="city" type="text" value="Москва">
+          </div>
+
+          <div class="field">
+            <label for="promo">Промокод</label>
+            <input id="promo" type="text" placeholder="SALE10 / VIP15 / MEGA20 / FREESHIP">
+          </div>
+
+          <div class="field full btn-row">
+            <button class="btn-main" type="submit">Рассчитать заказ</button>
+            <button class="btn-ghost" id="reloadCatalogBtn" type="button">Обновить каталог</button>
+            <button class="btn-ghost" id="checkBackendBtn" type="button">Проверить backend</button>
+          </div>
+        </form>
+      </article>
+
+      <article class="panel col-5">
+        <h2>Итог расчета</h2>
+        <div id="resultBox" class="result">
+          <div class="result-line"><span>Статус</span><strong>--</strong></div>
+          <div class="result-line"><span>Итог</span><strong>--</strong></div>
+        </div>
+        <p id="logBox" class="log">Лог операций появится здесь.</p>
+      </article>
+
+      <article class="panel col-12">
+        <h2>Каталог</h2>
+        <p class="muted">Ответ функции <code>список_товаров</code>.</p>
+        <div id="catalogBox" class="catalog"></div>
+      </article>
+    </section>
+  </main>
+
+  <script>
+    const ui = {
+      apiBase: document.getElementById("apiBase"),
+      badgeHealth: document.getElementById("badgeHealth"),
+      badgeFuncs: document.getElementById("badgeFuncs"),
+      orderForm: document.getElementById("orderForm"),
+      reloadCatalogBtn: document.getElementById("reloadCatalogBtn"),
+      checkBackendBtn: document.getElementById("checkBackendBtn"),
+      product: document.getElementById("product"),
+      qty: document.getElementById("qty"),
+      city: document.getElementById("city"),
+      promo: document.getElementById("promo"),
+      resultBox: document.getElementById("resultBox"),
+      logBox: document.getElementById("logBox"),
+      catalogBox: document.getElementById("catalogBox"),
+    };
+
+    const api = {
+      base() {
+        return (ui.apiBase.value || "http://127.0.0.1:8123").trim().replace(/\/+$/, "");
+      },
+      async get(path) {
+        const response = await fetch(api.base() + path);
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || ("HTTP " + response.status));
+        }
+        return data;
+      },
+      async call(functionName, args = []) {
+        const response = await fetch(api.base() + "/call", {
+          method: "POST",
+          headers: { "Content-Type": "application/json; charset=utf-8" },
+          body: JSON.stringify({
+            function: functionName,
+            args,
+            reset_state: false,
+          }),
+        });
+        const data = await response.json();
+        if (!response.ok || !data.ok) {
+          throw new Error(data.error || ("HTTP " + response.status));
+        }
+        return data.result;
+      },
+    };
+
+    function setLog(text) {
+      ui.logBox.textContent = text;
+    }
+
+    function setBadge(el, text, statusClass) {
+      el.textContent = text;
+      el.className = "badge";
+      if (statusClass) {
+        el.classList.add(statusClass);
+      }
+    }
+
+    function renderCatalog(items) {
+      ui.catalogBox.innerHTML = "";
+      ui.product.innerHTML = "";
+      for (const item of items) {
+        const id = item.id || "";
+        const title = item["название"] || id;
+        const price = item["цена"] || "0";
+        const stock = item["остаток"] || "0";
+
+        const option = document.createElement("option");
+        option.value = id;
+        option.textContent = `${title} (${price} ₽)`;
+        ui.product.appendChild(option);
+
+        const card = document.createElement("article");
+        card.className = "product";
+        card.innerHTML = `
+          <h3>${title}</h3>
+          <p>ID: <code>${id}</code></p>
+          <p>Цена: <strong>${price} ₽</strong></p>
+          <p>Остаток: ${stock}</p>
+        `;
+        ui.catalogBox.appendChild(card);
+      }
+    }
+
+    function renderResultOk(data, promoText) {
+      ui.resultBox.innerHTML = `
+        <div class="result-line"><span>Статус</span><strong>OK</strong></div>
+        <div class="result-line"><span>Цена</span><strong>${data["цена"]} ₽</strong></div>
+        <div class="result-line"><span>Количество</span><strong>${data["количество"]}</strong></div>
+        <div class="result-line"><span>Подытог</span><strong>${data["подытог"]} ₽</strong></div>
+        <div class="result-line"><span>Скидка</span><strong>${data["скидка"]} ₽ (${data["скидка_процент"]}%)</strong></div>
+        <div class="result-line"><span>Доставка</span><strong>${data["доставка"]} ₽</strong></div>
+        <div class="result-line"><span>Срок</span><strong>${data["срок_дней"]} дн.</strong></div>
+        <div class="result-line"><span>Итог</span><strong>${data["итог"]} ₽</strong></div>
+      `;
+      setLog("Расчет выполнен.\n" + promoText);
+    }
+
+    function renderResultError(code, text) {
+      ui.resultBox.innerHTML = `
+        <div class="result-line"><span>Статус</span><strong>Ошибка</strong></div>
+        <div class="result-line"><span>Код ошибки</span><strong>${code}</strong></div>
+      `;
+      setLog("Ошибка backend: " + text);
+    }
+
+    async function loadBackendInfo() {
+      try {
+        const [health, functionsInfo] = await Promise.all([
+          api.get("/health"),
+          api.get("/functions"),
+        ]);
+
+        if (health.ok) {
+          setBadge(ui.badgeHealth, "backend: online", "ok");
+        } else {
+          setBadge(ui.badgeHealth, "backend: неизвестно", "warn");
+        }
+        setBadge(ui.badgeFuncs, "functions: " + (functionsInfo.functions || []).length, "");
+      } catch (error) {
+        setBadge(ui.badgeHealth, "backend: offline", "err");
+        setBadge(ui.badgeFuncs, "functions: --", "warn");
+        setLog("Проверка backend не выполнена: " + error.message);
+        throw error;
+      }
+    }
+
+    async function loadCatalog() {
+      const catalog = await api.call("список_товаров", []);
+      renderCatalog(catalog);
+      setLog("Каталог загружен: " + catalog.length + " позиций.");
+    }
+
+    async function handleOrderSubmit(event) {
+      event.preventDefault();
+      const id = ui.product.value;
+      const qty = Number(ui.qty.value || "0");
+      const city = ui.city.value.trim();
+      const promo = ui.promo.value.trim();
+      if (!id) {
+        setLog("Выберите товар.");
+        return;
+      }
+
+      try {
+        const result = await api.call("рассчитать_заказ", [id, qty, city, promo]);
+        if (result["ok"] === 0) {
+          const code = result["код_ошибки"];
+          const text = await api.call("ошибка_заказа", [code]);
+          renderResultError(code, text);
+          return;
+        }
+        const promoText = promo ? await api.call("текст_промо", [promo]) : "Промокод не указан";
+        renderResultOk(result, promoText);
+      } catch (error) {
+        renderResultError(-1, error.message);
+      }
+    }
+
+    ui.orderForm.addEventListener("submit", handleOrderSubmit);
+    ui.reloadCatalogBtn.addEventListener("click", async () => {
+      try {
+        await loadCatalog();
+      } catch (error) {
+        setLog("Не удалось обновить каталог: " + error.message);
+      }
+    });
+    ui.checkBackendBtn.addEventListener("click", async () => {
+      try {
+        await loadBackendInfo();
+      } catch (_error) {
+        // сообщение уже выведено в setLog
+      }
+    });
+
+    (async () => {
+      try {
+        await loadBackendInfo();
+        await loadCatalog();
+      } catch (_error) {
+        // сообщения уже поставлены выше
+      }
+    })();
+  </script>
+</body>
+</html>

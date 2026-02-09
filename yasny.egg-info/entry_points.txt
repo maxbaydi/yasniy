@@ -1,0 +1,3 @@
+[console_scripts]
+yasn = yasny.cli:main
+yasny = yasny.cli:main

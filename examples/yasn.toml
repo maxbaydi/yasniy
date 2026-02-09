@@ -1,0 +1,16 @@
+[modules]
+root = "backend"
+paths = ["backend/lib"]
+
+[run]
+backend = "backend/main.яс"
+host = "127.0.0.1"
+port = 8123
+
+[run.dev]
+frontend = "python -m http.server 5173 --bind 127.0.0.1"
+frontend_cwd = "frontend"
+
+[run.start]
+frontend = "python -m http.server 5173 --bind 127.0.0.1"
+frontend_cwd = "frontend"

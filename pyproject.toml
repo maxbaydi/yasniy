@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "yasny"
+version = "0.1.0"
+description = "Compiler and VM for YASNY language"
+requires-python = ">=3.11"
+
+[project.scripts]
+yasn = "yasny.cli:main"
+yasny = "yasny.cli:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["yasny", "yasny.*", "yasn", "yasn.*"]
+exclude = ["backend", "backend.*", "examples", "examples.*", "docs", "docs.*", "build", "build.*"]
