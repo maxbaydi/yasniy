@@ -85,6 +85,7 @@ class FuncDecl(Stmt):
     return_type: TypeNode
     body: list[Stmt]
     exported: bool = False
+    is_async: bool = False
 
 
 @dataclass(slots=True)
@@ -181,6 +182,11 @@ class MemberExpr(Expr):
 @dataclass(slots=True)
 class UnaryOp(Expr):
     op: str
+    operand: Expr
+
+
+@dataclass(slots=True)
+class AwaitExpr(Expr):
     operand: Expr
 
 

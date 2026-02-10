@@ -6,6 +6,9 @@ from dataclasses import dataclass
 from . import ast
 
 
+DYNAMIC_CALL_ALL = "__yasn_dynamic_call_all__"
+
+
 @dataclass(slots=True)
 class OptimizedStmt:
     statements: list[ast.Stmt]
@@ -148,6 +151,10 @@ class _Optimizer:
             rewritten = copy.deepcopy(expr)
             rewritten.operand = operand
             return rewritten
+        if isinstance(expr, ast.AwaitExpr):
+            rewritten = copy.deepcopy(expr)
+            rewritten.operand = self.optimize_expr(expr.operand)
+            return rewritten
         if isinstance(expr, ast.BinaryOp):
             left = self.optimize_expr(expr.left)
             right = self.optimize_expr(expr.right)
@@ -177,6 +184,8 @@ def _is_pure_expression(expr: ast.Expr) -> bool:
         return _is_pure_expression(expr.target) and _is_pure_expression(expr.index)
     if isinstance(expr, ast.UnaryOp):
         return _is_pure_expression(expr.operand)
+    if isinstance(expr, ast.AwaitExpr):
+        return False
     if isinstance(expr, ast.BinaryOp):
         return _is_pure_expression(expr.left) and _is_pure_expression(expr.right)
     if isinstance(expr, ast.ListLiteral):
@@ -276,6 +285,9 @@ def _tree_shake(statements: list[ast.Stmt]) -> list[ast.Stmt]:
 
     for stmt in others:
         for callee in _collect_calls_in_stmt(stmt):
+            if callee == DYNAMIC_CALL_ALL:
+                queue.extend(functions.keys())
+                continue
             if callee in functions and callee not in reachable:
                 queue.append(callee)
 
@@ -288,6 +300,9 @@ def _tree_shake(statements: list[ast.Stmt]) -> list[ast.Stmt]:
         if fn is None:
             continue
         for callee in _collect_calls_in_function(fn):
+            if callee == DYNAMIC_CALL_ALL:
+                queue.extend(functions.keys())
+                continue
             if callee in functions and callee not in reachable:
                 queue.append(callee)
 
@@ -338,11 +353,18 @@ def _collect_calls_in_expr(expr: ast.Expr) -> set[str]:
     if isinstance(expr, ast.Call):
         if isinstance(expr.callee, ast.Identifier):
             names.add(expr.callee.name)
+            if expr.callee.name == "запустить":
+                if expr.args and isinstance(expr.args[0], ast.Literal) and expr.args[0].kind == "string":
+                    names.add(str(expr.args[0].value))
+                else:
+                    names.add(DYNAMIC_CALL_ALL)
         else:
             names.update(_collect_calls_in_expr(expr.callee))
         for a in expr.args:
             names.update(_collect_calls_in_expr(a))
     elif isinstance(expr, ast.UnaryOp):
+        names.update(_collect_calls_in_expr(expr.operand))
+    elif isinstance(expr, ast.AwaitExpr):
         names.update(_collect_calls_in_expr(expr.operand))
     elif isinstance(expr, ast.BinaryOp):
         names.update(_collect_calls_in_expr(expr.left))

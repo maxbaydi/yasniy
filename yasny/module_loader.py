@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import copy
 import hashlib
@@ -33,6 +33,7 @@ class ModuleResolver:
         self._resolved: dict[Path, ResolvedModule] = {}
         self._resolving_stack: list[Path] = []
         self._project_root: Path | None = None
+        self._deps_root: Path | None = None
         self._config = ModuleConfig(root=None, paths=[])
         self._tags: dict[Path, str] = {}
 
@@ -64,6 +65,7 @@ class ModuleResolver:
                 found_project = cur
 
         self._project_root = found_project
+        self._deps_root = (found_project / ".yasn" / "deps") if found_project is not None else None
         if found_config is not None:
             self._config = self._load_config(found_config)
 
@@ -223,8 +225,13 @@ class ModuleResolver:
     ) -> list[ast.Stmt]:
         target = self._resolve_module_path(stmt.module_path, current_module, stmt.line, stmt.col)
         resolved = self._resolve_module(target, program=None, is_entry=False)
-        names = list(resolved.exports.keys())
-        materialized, expose_map = self._materialize_imported_decls(resolved, names)
+        exported_names = list(resolved.exports.keys())
+        include_set = self._expand_with_dependencies(resolved, exported_names)
+        materialized, expose_map = self._materialize_imported_decls(
+            resolved,
+            list(include_set),
+            exposed_names=exported_names,
+        )
         materialized = self._only_new_imported(materialized, top_decl_names)
         self._append_imported(materialized, top_decl_names, stmt, current_module)
 
@@ -274,7 +281,11 @@ class ModuleResolver:
                 requested_names.append(item.name)
 
         include_set = self._expand_with_dependencies(resolved, requested_names)
-        materialized, expose_map = self._materialize_imported_decls(resolved, list(include_set))
+        materialized, expose_map = self._materialize_imported_decls(
+            resolved,
+            list(include_set),
+            exposed_names=requested_names,
+        )
         materialized = self._only_new_imported(materialized, top_decl_names)
         self._append_imported(materialized, top_decl_names, stmt, current_module)
 
@@ -297,15 +308,22 @@ class ModuleResolver:
     def _expand_with_dependencies(self, resolved: ResolvedModule, roots: list[str]) -> set[str]:
         include_set: set[str] = set()
         queue = list(roots)
-        export_names = set(resolved.exports.keys())
+        declarations: dict[str, ast.Stmt] = {}
+        for stmt in resolved.program.statements:
+            decl_name = _decl_name(stmt)
+            if decl_name is not None:
+                declarations[decl_name] = stmt
+        available_names = set(declarations.keys())
 
         while queue:
             cur = queue.pop()
             if cur in include_set:
                 continue
+            if cur not in declarations:
+                continue
             include_set.add(cur)
-            decl = resolved.exports[cur]
-            deps = _direct_dependencies(decl, export_names)
+            decl = declarations[cur]
+            deps = _direct_dependencies(decl, available_names)
             for dep in deps:
                 if dep not in include_set:
                     queue.append(dep)
@@ -315,8 +333,16 @@ class ModuleResolver:
         self,
         resolved: ResolvedModule,
         names: list[str],
+        exposed_names: list[str] | None = None,
     ) -> tuple[list[ast.Stmt], dict[str, str]]:
-        selected = {name for name in names if name in resolved.exports}
+        declarations: dict[str, ast.Stmt] = {}
+        for stmt in resolved.program.statements:
+            decl_name = _decl_name(stmt)
+            if decl_name is not None:
+                declarations[decl_name] = stmt
+
+        selected = {name for name in names if name in declarations}
+        exposed = set(exposed_names) if exposed_names is not None else set(selected)
         rename_map: dict[str, str] = {}
         for name in selected:
             rename_map[name] = self._unique_symbol_name(resolved, name)
@@ -335,7 +361,8 @@ class ModuleResolver:
                 renamed.exported = False
             materialized.append(renamed)
 
-        return materialized, rename_map
+        expose_map = {name: rename_map[name] for name in exposed if name in rename_map}
+        return materialized, expose_map
 
     def _append_imported(
         self,
@@ -382,20 +409,25 @@ class ModuleResolver:
         linked.append(stmt)
 
     def _resolve_module_path(self, raw_path: str, current_module: Path, line: int, col: int) -> Path:
-        path = Path(raw_path)
-        if not path.suffix:
-            path = path.with_suffix(".СЏСЃ")
-
-        candidates: list[Path] = []
-        if path.is_absolute():
-            candidates.append(path.resolve())
+        raw = Path(raw_path)
+        path_variants: list[Path]
+        if raw.suffix:
+            path_variants = [raw]
         else:
+            path_variants = [raw.with_suffix(".яс")]
+        candidates: list[Path] = []
+        for path in path_variants:
+            if path.is_absolute():
+                candidates.append(path.resolve())
+                continue
             candidates.append((current_module.parent / path).resolve())
             if self._project_root is not None:
                 if self._config.root:
                     candidates.append((self._project_root / self._config.root / path).resolve())
                 for extra in self._config.paths:
                     candidates.append((self._project_root / extra / path).resolve())
+            if self._deps_root is not None:
+                candidates.append((self._deps_root / path).resolve())
 
         dedup: list[Path] = []
         seen: set[Path] = set()
@@ -460,7 +492,19 @@ def _direct_dependencies(stmt: ast.Stmt, export_names: set[str]) -> set[str]:
 
 
 class _DependencyCollector:
-    BUILTIN_NAMES = {"РїРµС‡Р°С‚СЊ", "РґР»РёРЅР°", "РґРёР°РїР°Р·РѕРЅ", "РІРІРѕРґ"}
+    BUILTIN_NAMES = {
+        "печать",
+        "длина",
+        "диапазон",
+        "ввод",
+        "пауза",
+        "строка",
+        "запустить",
+        "готово",
+        "ожидать",
+        "ожидать_все",
+        "отменить",
+    }
 
     def __init__(self, export_names: set[str]):
         self.export_names = export_names
@@ -539,6 +583,9 @@ class _DependencyCollector:
                 self.collect_expr(value)
             return
         if isinstance(expr, ast.UnaryOp):
+            self.collect_expr(expr.operand)
+            return
+        if isinstance(expr, ast.AwaitExpr):
             self.collect_expr(expr.operand)
             return
         if isinstance(expr, ast.BinaryOp):
@@ -699,6 +746,10 @@ class _AliasRewriter:
             rewritten = copy.deepcopy(expr)
             rewritten.operand = self.rewrite_expr(expr.operand)
             return rewritten
+        if isinstance(expr, ast.AwaitExpr):
+            rewritten = copy.deepcopy(expr)
+            rewritten.operand = self.rewrite_expr(expr.operand)
+            return rewritten
 
         if isinstance(expr, ast.BinaryOp):
             rewritten = copy.deepcopy(expr)
@@ -842,6 +893,10 @@ class _RenameSymbols:
             return rewritten
 
         if isinstance(expr, ast.UnaryOp):
+            rewritten = copy.deepcopy(expr)
+            rewritten.operand = self.rewrite_expr(expr.operand)
+            return rewritten
+        if isinstance(expr, ast.AwaitExpr):
             rewritten = copy.deepcopy(expr)
             rewritten.operand = self.rewrite_expr(expr.operand)
             return rewritten

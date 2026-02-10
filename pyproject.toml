@@ -17,5 +17,5 @@ include-package-data = true
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["yasny", "yasny.*", "yasn", "yasn.*"]
-exclude = ["backend", "backend.*", "examples", "examples.*", "docs", "docs.*", "build", "build.*"]
+include = ["yasny", "yasny.*"]
+exclude = ["examples", "examples.*", "docs", "docs.*", "build", "build.*"]

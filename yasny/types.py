@@ -29,6 +29,8 @@ FLOAT = Type("Дроб")
 BOOL = Type("Лог")
 STRING = Type("Строка")
 VOID = Type("Пусто")
+ANY = Type("Любой")
+TASK = Type("Задача")
 UNION = "Объединение"
 
 
@@ -52,6 +54,8 @@ def union_of(*variants: Type) -> Type:
     for t in flat:
         if t not in uniq:
             uniq.append(t)
+    if ANY in uniq:
+        return ANY
     if not uniq:
         return VOID
     if len(uniq) == 1:
@@ -102,6 +106,8 @@ def from_type_node(node: ast.TypeNode, path: str | None = None) -> Type:
             "Лог": BOOL,
             "Строка": STRING,
             "Пусто": VOID,
+            "Любой": ANY,
+            "Задача": TASK,
         }
         if node.name not in mapping:
             raise YasnyError(f"Неизвестный тип: {node.name}", node.line, node.col, path)
@@ -122,12 +128,30 @@ class FunctionSignature:
     return_type: Type
     builtin: bool = False
     varargs: bool = False
+    is_async: bool = False
 
 
 def is_assignable(expected: Type, actual: Type) -> bool:
-    exp_variants = variants_of(expected)
-    act_variants = variants_of(actual)
-    for act in act_variants:
-        if act not in exp_variants:
+    for act in variants_of(actual):
+        if not _is_assignable_single(expected, act):
             return False
     return True
+
+
+def _is_assignable_single(expected: Type, actual: Type) -> bool:
+    if expected == ANY or actual == ANY:
+        return True
+
+    exp_variants = variants_of(expected)
+    if len(exp_variants) > 1:
+        return any(_is_assignable_single(exp, actual) for exp in exp_variants)
+
+    expected_single = exp_variants[0]
+    if expected_single.name == "Список" and actual.name == "Список":
+        return _is_assignable_single(expected_single.args[0], actual.args[0])
+    if expected_single.name == "Словарь" and actual.name == "Словарь":
+        return _is_assignable_single(expected_single.args[0], actual.args[0]) and _is_assignable_single(
+            expected_single.args[1],
+            actual.args[1],
+        )
+    return expected_single == actual

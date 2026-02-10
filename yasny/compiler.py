@@ -26,6 +26,11 @@ class Compiler:
     def compile(self, program: ast.Program) -> CompileResult:
         program = optimize_program(program)
         global_slots = self._collect_global_slots(program)
+        async_functions = {
+            stmt.name
+            for stmt in program.statements
+            if isinstance(stmt, ast.FuncDecl) and stmt.is_async
+        }
         functions: dict[str, FunctionBC] = {}
 
         for stmt in program.statements:
@@ -36,6 +41,7 @@ class Compiler:
                     params=[p.name for p in stmt.params],
                     global_slots=global_slots,
                     is_entry=False,
+                    async_functions=async_functions,
                 )
                 for body_stmt in stmt.body:
                     fn_compiler.compile_stmt(body_stmt)
@@ -50,6 +56,7 @@ class Compiler:
             params=[],
             global_slots=global_slots,
             is_entry=True,
+            async_functions=async_functions,
         )
         for stmt in program.statements:
             if isinstance(stmt, ast.FuncDecl):
@@ -58,6 +65,8 @@ class Compiler:
 
         if "main" in functions:
             entry_compiler.emit("CALL", "main", 0)
+            if "main" in async_functions:
+                entry_compiler.emit("CALL", "ожидать", 1)
             entry_compiler.emit("POP")
         entry_compiler.emit("HALT")
         entry = entry_compiler.finish()
@@ -79,12 +88,21 @@ class Compiler:
 
 
 class _FunctionCompiler:
-    def __init__(self, path: str | None, name: str, params: list[str], global_slots: dict[str, int], is_entry: bool):
+    def __init__(
+        self,
+        path: str | None,
+        name: str,
+        params: list[str],
+        global_slots: dict[str, int],
+        is_entry: bool,
+        async_functions: set[str],
+    ):
         self.path = path
         self.name = name
         self.params = params
         self.global_slots = global_slots
         self.is_entry = is_entry
+        self.async_functions = async_functions
         self.instructions: list[Instruction] = []
         self.next_slot = 0
         self.scopes: list[dict[str, int]] = []
@@ -346,6 +364,11 @@ class _FunctionCompiler:
                 return
             raise YasnyError(f"Неизвестный унарный оператор: {expr.op}", expr.line, expr.col, self.path)
 
+        if isinstance(expr, ast.AwaitExpr):
+            self.compile_expr(expr.operand)
+            self.emit("CALL", "ожидать", 1)
+            return
+
         if isinstance(expr, ast.BinaryOp):
             if expr.op == "и":
                 self._compile_short_circuit_and(expr)
@@ -377,6 +400,12 @@ class _FunctionCompiler:
         if isinstance(expr, ast.Call):
             if not isinstance(expr.callee, ast.Identifier):
                 raise YasnyError("Вызов возможен только по имени функции", expr.line, expr.col, self.path)
+            if expr.callee.name in self.async_functions:
+                self.emit("CONST", expr.callee.name)
+                for arg in expr.args:
+                    self.compile_expr(arg)
+                self.emit("CALL", "запустить", len(expr.args) + 1)
+                return
             for arg in expr.args:
                 self.compile_expr(arg)
             self.emit("CALL", expr.callee.name, len(expr.args))

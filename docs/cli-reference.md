@@ -1,4 +1,4 @@
-﻿# CLI справочник `yasn`
+# CLI справочник `yasn`
 
 Проверить полный список:
 
@@ -35,7 +35,7 @@ yasn run dev
 yasn run start
 ```
 
-`yasn run dev/start` читает `yasn.toml` (или legacy `yasny.toml`) и поднимает backend + опционально frontend.
+`yasn run dev/start` читает `yasn.toml` (или legacy `yasny.toml`) и поднимает backend.
 
 ## 2. `dev`
 
@@ -146,21 +146,55 @@ yasn paths
 yasn paths --short
 ```
 
-## 12. Конфиг `yasn.toml` для `dev/start`
+## 12. `deps`
+
+Управление зависимостями из секции `[dependencies]` в `yasn.toml`/`yasny.toml`.
+
+Установка зависимостей:
+
+```powershell
+yasn deps
+# или
+yasn deps install
+```
+
+Установка с очисткой локального кэша от неактуальных зависимостей:
+
+```powershell
+yasn deps install --clean
+```
+
+Просмотр статуса:
+
+```powershell
+yasn deps list
+```
+
+Показать также транзитивные зависимости из lock-файла:
+
+```powershell
+yasn deps list --all
+```
+
+Поддерживаемые источники:
+
+- `git+https://...repo.git#v1.2.3`
+- `path:../relative/or/absolute/path`
+- `../relative/or/absolute/path` (как shorthand для `path:`)
+
+Особенности:
+
+- `yasn deps install` устанавливает прямые и транзитивные зависимости.
+- При конфликте двух транзитивных зависимостей с одинаковым именем, но разным источником/версией, команда завершится ошибкой.
+- Lock-файл сохраняется в `.yasn/deps.lock.json`.
+
+## 13. Конфиг `yasn.toml` для `dev/start`
 
 ```toml
 [run]
 backend = "backend/main.яс"
 host = "127.0.0.1"
 port = 8000
-
-[run.dev]
-frontend = "npm run dev"
-frontend_cwd = "frontend"
-
-[run.start]
-frontend = "npm start"
-frontend_cwd = "frontend"
 ```
 
 После этого:
@@ -169,9 +203,9 @@ frontend_cwd = "frontend"
 yasn run dev
 ```
 
-поднимет backend на ЯСНЫЙ и frontend dev-сервер одной командой.
+поднимет backend на ЯСНЫЙ одной командой.
 
-## 13. Коды возврата
+## 14. Коды возврата
 
 - `0` — успех
 - `1` — ошибка компиляции/выполнения/конфигурации

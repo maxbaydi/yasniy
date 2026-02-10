@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import argparse
 import re
@@ -12,6 +12,7 @@ from .app_bundle import (
     user_bin_dir,
 )
 from .bc import decode_program, encode_program
+from .deps import install_dependencies, list_dependencies
 from .diagnostics import YasnyError
 from .pipeline import check_program, compile_source, load_program, run_program
 from .project_runner import run_mode
@@ -37,7 +38,7 @@ def build_parser() -> argparse.ArgumentParser:
     run_cmd.add_argument("--host", help="Хост backend-сервера для режима dev/start")
     run_cmd.add_argument("--port", type=int, help="Порт backend-сервера для режима dev/start")
 
-    dev_cmd = sub.add_parser("dev", help="Запустить проект в dev режиме (backend + опционально frontend)")
+    dev_cmd = sub.add_parser("dev", help="Запустить проект в dev режиме (backend)")
     dev_cmd.add_argument("--backend", help="Backend entrypoint")
     dev_cmd.add_argument("--host", help="Хост backend-сервера")
     dev_cmd.add_argument("--port", type=int, help="Порт backend-сервера")
@@ -82,6 +83,25 @@ def build_parser() -> argparse.ArgumentParser:
         "--short",
         action="store_true",
         help="Печатать только каталог bin (удобно для PATH)",
+    )
+
+    deps_cmd = sub.add_parser("deps", help="Установить или показать зависимости из [dependencies]")
+    deps_cmd.add_argument(
+        "action",
+        nargs="?",
+        default="install",
+        choices=("install", "list"),
+        help="install (по умолчанию) или list",
+    )
+    deps_cmd.add_argument(
+        "--clean",
+        action="store_true",
+        help="Удалить локально установленные зависимости, отсутствующие в конфиге (только для install)",
+    )
+    deps_cmd.add_argument(
+        "--all",
+        action="store_true",
+        help="Для list: показать также транзитивные зависимости из lock-файла",
     )
 
     return parser
@@ -177,6 +197,39 @@ def main(argv: list[str] | None = None) -> int:
                 return 0
             print(f"apps: {user_apps_dir()}")
             print(f"bin:  {user_bin_dir()}")
+            return 0
+
+        if args.command == "deps":
+            if args.action == "install":
+                manifest, installed = install_dependencies(clean=args.clean)
+                print(f"[yasn] Config: {manifest.config_path}")
+                if not manifest.specs:
+                    print("[yasn] no dependencies in [dependencies].")
+                    return 0
+                for item in installed:
+                    ref_suffix = f"#{item.spec.ref}" if item.spec.ref else ""
+                    scope = "direct" if item.direct else "transitive"
+                    requested_by = f" (from {item.requested_by})" if item.requested_by else ""
+                    print(
+                        f"[yasn] installed [{scope}] {item.spec.name}: {item.spec.kind} {item.spec.source}{ref_suffix} -> {item.target}{requested_by}"
+                    )
+                print(f"[yasn] Lock: {manifest.lock_path}")
+                return 0
+
+            manifest, statuses = list_dependencies(include_transitive=args.all)
+            print(f"[yasn] Config: {manifest.config_path}")
+            if not statuses:
+                print("[yasn] no dependencies in [dependencies].")
+                return 0
+            for item in statuses:
+                state = "installed" if item.installed else "missing"
+                ref_suffix = f"#{item.spec.ref}" if item.spec.ref else ""
+                resolved = f" ({item.resolved})" if item.resolved else ""
+                scope = "direct" if item.direct else "transitive"
+                requested_by = f" (from {item.requested_by})" if item.requested_by else ""
+                print(
+                    f"[yasn] {state:9} [{scope}] {item.spec.name}: {item.spec.kind} {item.spec.source}{ref_suffix}{resolved}{requested_by}"
+                )
             return 0
 
         parser.error("Неизвестная команда")

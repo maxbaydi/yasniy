@@ -24,12 +24,16 @@ KEYWORDS = {
     "из",
     "как",
     "экспорт",
+    "асинхронная",
     "прервать",
     "продолжить",
+    "ждать",
 }
 
 TWO_CHAR_TOKENS = {"->", "==", "!=", "<=", ">="}
 SINGLE_CHAR_TOKENS = set("():,[]{}+-*/%=<>.|?")
+OPENING_BRACKETS = {"(", "[", "{"}
+CLOSING_BRACKETS = {")": "(", "]": "[", "}": "{"}
 
 
 @dataclass(slots=True)
@@ -55,6 +59,7 @@ def tokenize(source: str, path: str | None = None) -> list[Token]:
     lines = text.split("\n")
     tokens: list[Token] = []
     indent_stack = [0]
+    bracket_stack: list[tuple[str, int, int]] = []
 
     for line_no, line in enumerate(lines, start=1):
         tab_idx = line.find("\t")
@@ -69,15 +74,16 @@ def tokenize(source: str, path: str | None = None) -> list[Token]:
         if rest == "" or rest.startswith("#"):
             continue
 
-        if space_count > indent_stack[-1]:
-            indent_stack.append(space_count)
-            tokens.append(Token("INDENT", None, line_no, 1))
-        elif space_count < indent_stack[-1]:
-            while space_count < indent_stack[-1]:
-                indent_stack.pop()
-                tokens.append(Token("DEDENT", None, line_no, 1))
-            if space_count != indent_stack[-1]:
-                raise YasnyError("Некорректный уровень отступа", line_no, 1, path)
+        if not bracket_stack:
+            if space_count > indent_stack[-1]:
+                indent_stack.append(space_count)
+                tokens.append(Token("INDENT", None, line_no, 1))
+            elif space_count < indent_stack[-1]:
+                while space_count < indent_stack[-1]:
+                    indent_stack.pop()
+                    tokens.append(Token("DEDENT", None, line_no, 1))
+                if space_count != indent_stack[-1]:
+                    raise YasnyError("Некорректный уровень отступа", line_no, 1, path)
 
         idx = space_count
         while idx < len(line):
@@ -97,6 +103,19 @@ def tokenize(source: str, path: str | None = None) -> list[Token]:
                 continue
 
             if ch in SINGLE_CHAR_TOKENS:
+                if ch in OPENING_BRACKETS:
+                    bracket_stack.append((ch, line_no, col))
+                elif ch in CLOSING_BRACKETS:
+                    if not bracket_stack:
+                        raise YasnyError("Лишняя закрывающая скобка", line_no, col, path)
+                    open_ch, open_line, open_col = bracket_stack.pop()
+                    if open_ch != CLOSING_BRACKETS[ch]:
+                        raise YasnyError(
+                            f"Несоответствующая скобка: '{open_ch}' открыта здесь",
+                            open_line,
+                            open_col,
+                            path,
+                        )
                 tokens.append(Token(ch, ch, line_no, col))
                 idx += 1
                 continue
@@ -171,7 +190,12 @@ def tokenize(source: str, path: str | None = None) -> list[Token]:
 
             raise YasnyError(f"Неизвестный символ: {ch}", line_no, col, path)
 
-        tokens.append(Token("NEWLINE", None, line_no, len(line) + 1))
+        if not bracket_stack:
+            tokens.append(Token("NEWLINE", None, line_no, len(line) + 1))
+
+    if bracket_stack:
+        open_ch, open_line, open_col = bracket_stack[-1]
+        raise YasnyError(f"Незакрытая скобка: '{open_ch}'", open_line, open_col, path)
 
     eof_line = len(lines) + 1
     if tokens and tokens[-1].kind != "NEWLINE":

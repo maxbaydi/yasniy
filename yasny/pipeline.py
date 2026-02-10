@@ -15,7 +15,10 @@ def parse_source(source: str, path: str | None = None):
     return parser.parse()
 
 
-def check_program(program, path: str | None = None) -> CheckResult:
+def check_program(
+    program,
+    path: str | None = None,
+) -> CheckResult:
     checker = TypeChecker(path=path)
     return checker.check(program)
 
@@ -25,7 +28,10 @@ def compile_program(program, path: str | None = None) -> CompileResult:
     return compiler.compile(program)
 
 
-def compile_source(source: str, path: str | None = None) -> ProgramBC:
+def compile_source(
+    source: str,
+    path: str | None = None,
+) -> ProgramBC:
     program = resolve_modules(source, path=path)
     check_program(program, path=path)
     compiled = compile_program(program, path=path)
@@ -36,6 +42,9 @@ def load_program(source: str, path: str | None = None):
     return resolve_modules(source, path=path)
 
 
-def run_program(program: ProgramBC, path: str | None = None) -> None:
+def run_program(
+    program: ProgramBC,
+    path: str | None = None,
+) -> None:
     vm = VirtualMachine(program=program, path=path)
     vm.run()

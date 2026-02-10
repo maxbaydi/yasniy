@@ -1,4 +1,4 @@
-﻿[modules]
+[modules]
 root = "examples"
 paths = ["examples/lib"]
 
@@ -6,11 +6,3 @@ paths = ["examples/lib"]
 backend = "backend/main.яс"
 host = "127.0.0.1"
 port = 8000
-
-[run.dev]
-# frontend = "npm run dev"
-# frontend_cwd = "frontend"
-
-[run.start]
-# frontend = "npm start"
-# frontend_cwd = "frontend"

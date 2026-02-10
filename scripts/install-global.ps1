@@ -1,4 +1,4 @@
-﻿param(
+param(
     [switch]$Editable,
     [switch]$Pipx
 )
@@ -78,7 +78,7 @@ if ($Pipx) {
     Write-Host "[yasn] Installing with pipx..."
     Invoke-Checked python -m pip install --user --no-warn-script-location pipx
     Invoke-Checked python -m pipx ensurepath
-    Invoke-Checked python -m pipx install --force $root
+    Invoke-Checked python -m pipx install --force --name yasn $root
     Write-Host "[yasn] Done. Open a new terminal and run: yasn --help"
     exit 0
 }

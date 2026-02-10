@@ -1,5 +1,0 @@
-Metadata-Version: 2.4
-Name: yasny
-Version: 0.1.0
-Summary: Compiler and VM for YASNY language
-Requires-Python: >=3.11

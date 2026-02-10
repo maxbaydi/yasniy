@@ -1,4 +1,4 @@
-﻿# ЯСНЫЙ (`.яс`)
+# ЯСНЫЙ (`.яс`)
 
 ЯСНЫЙ — строготипизированный язык с русскоязычным синтаксисом и отступами в стиле Python.
 
@@ -6,14 +6,20 @@
 
 - компилятор и типизатор;
 - модульную систему (`подключить`, `из ... подключить`, `как`, `экспорт`);
+- зависимости проекта через `yasn.toml` (`yasn deps`, включая транзитивные и lock-файл);
 - генерацию байткода (`.ybc`);
 - виртуальную машину;
+- асинхронные задачи VM (`асинхронная функция`, `ждать`, `отменить`);
+- backend-ядро (`yasny/backend_core.py`);
+- HTTP-сервер (`yasn serve`);
 - упаковку приложений (`.yapp`) и установку консольных команд.
 
 ## Быстрый запуск
 
 ```powershell
 python -m yasn run examples/тест.яс
+python -m yasn deps
+python -m yasn deps list --all
 ```
 
 ## Глобальная установка команды `yasn`
@@ -43,12 +49,10 @@ yasn run examples/функции.яс
 yasn run examples/модули.яс
 yasn run examples/алиасы_и_namespace.яс
 yasn run examples/типы_и_циклы.яс
-# fullstack demo:
-cd examples
-yasn run dev
+yasn run examples/асинхронность.яс
 ```
 
-## Backend + Frontend одной командой
+## Backend сервер
 
 ```toml
 # yasn.toml
@@ -56,15 +60,10 @@ yasn run dev
 backend = "backend/main.яс"
 host = "127.0.0.1"
 port = 8000
-
-[run.dev]
-frontend = "npm run dev"
-frontend_cwd = "frontend"
 ```
 
 ```powershell
 yasn run dev
 # или
-yasn start
+yasn serve backend/main.яс --host 127.0.0.1 --port 8000
 ```
-

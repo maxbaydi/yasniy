@@ -5,7 +5,7 @@ from .diagnostics import YasnyError
 from .lexer import Token
 
 
-PRIMITIVE_TYPE_NAMES = {"Цел", "Дроб", "Лог", "Строка", "Пусто"}
+PRIMITIVE_TYPE_NAMES = {"Цел", "Дроб", "Лог", "Строка", "Пусто", "Любой", "Задача"}
 
 
 class Parser:
@@ -29,8 +29,10 @@ class Parser:
             return self._parse_export_stmt()
         if tok.kind == "пусть":
             return self._parse_var_decl(exported=False)
+        if tok.kind == "асинхронная":
+            return self._parse_async_func_decl(exported=False)
         if tok.kind == "функция":
-            return self._parse_func_decl(exported=False)
+            return self._parse_func_decl(exported=False, is_async=False)
         if tok.kind == "если":
             return self._parse_if_stmt()
         if tok.kind == "пока":
@@ -65,9 +67,16 @@ class Parser:
         start = self._expect("экспорт", "Ожидалось 'экспорт'")
         if self._check("пусть"):
             return self._parse_var_decl(exported=True)
+        if self._check("асинхронная"):
+            return self._parse_async_func_decl(exported=True)
         if self._check("функция"):
-            return self._parse_func_decl(exported=True)
-        raise YasnyError("После 'экспорт' допускается только 'пусть' или 'функция'", start.line, start.col, self.path)
+            return self._parse_func_decl(exported=True, is_async=False)
+        raise YasnyError(
+            "После 'экспорт' допускается только 'пусть', 'функция' или 'асинхронная функция'",
+            start.line,
+            start.col,
+            self.path,
+        )
 
     def _parse_import_all_stmt(self) -> ast.ImportAll:
         start = self._expect("подключить", "Ожидалось 'подключить'")
@@ -130,8 +139,16 @@ class Parser:
             exported=exported,
         )
 
-    def _parse_func_decl(self, exported: bool) -> ast.FuncDecl:
+    def _parse_async_func_decl(self, exported: bool) -> ast.FuncDecl:
+        start = self._expect("асинхронная", "Ожидалось 'асинхронная'")
+        self._expect("функция", "После 'асинхронная' ожидалось 'функция'")
+        return self._parse_func_decl_tail(start=start, exported=exported, is_async=True)
+
+    def _parse_func_decl(self, exported: bool, is_async: bool) -> ast.FuncDecl:
         start = self._expect("функция", "Ожидалось 'функция'")
+        return self._parse_func_decl_tail(start=start, exported=exported, is_async=is_async)
+
+    def _parse_func_decl_tail(self, start: Token, exported: bool, is_async: bool) -> ast.FuncDecl:
         name_tok = self._expect("IDENT", "Ожидалось имя функции")
         self._expect("(", "Ожидался '(' в объявлении функции")
         params: list[ast.Param] = []
@@ -151,8 +168,11 @@ class Parser:
                 if not self._match(","):
                     break
         self._expect(")", "Ожидался ')' после параметров")
+        self._consume_newlines()
         self._expect("->", "Ожидался '->' после параметров")
+        self._consume_newlines()
         return_type = self._parse_type()
+        self._consume_newlines()
         self._expect(":", "Ожидался ':' после типа возвращаемого значения")
         body = self._parse_block()
         return ast.FuncDecl(
@@ -163,6 +183,7 @@ class Parser:
             return_type=return_type,
             body=body,
             exported=exported,
+            is_async=is_async,
         )
 
     def _parse_if_stmt(self) -> ast.IfStmt:
@@ -318,6 +339,10 @@ class Parser:
         return expr
 
     def _parse_unary(self) -> ast.Expr:
+        if self._match("ждать"):
+            op_tok = self._previous()
+            operand = self._parse_unary()
+            return ast.AwaitExpr(line=op_tok.line, col=op_tok.col, operand=operand)
         if self._match("не", "-"):
             op_tok = self._previous()
             operand = self._parse_unary()

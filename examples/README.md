@@ -1,37 +1,25 @@
-# YASN Fullstack Example
+# Примеры ЯСНЫЙ
 
-Этот пример показывает связку:
+Примеры использования языка ЯСНЫЙ.
 
-- backend на ЯСНОМ (`examples/backend/main.яс`)
-- frontend на HTML/JS (`examples/frontend/index.html`)
-- модульную структуру backend (`examples/backend/lib/*.яс`)
-
-## Быстрый запуск одной командой
-
-Из каталога `examples`:
+## Запуск отдельного файла
 
 ```powershell
-yasn run dev
+yasn run examples/тест.яс
 ```
 
-После запуска:
-
-- backend: `http://127.0.0.1:8123`
-- frontend: `http://127.0.0.1:5173`
-
-## Ручной запуск в двух терминалах
-
-Терминал 1:
+## Запуск backend-сервера
 
 ```powershell
 yasn serve backend/main.яс --host 127.0.0.1 --port 8123
 ```
 
-Терминал 2:
+## Быстрый запуск проекта
+
+Из каталога `examples`:
 
 ```powershell
-cd frontend
-python -m http.server 5173 --bind 127.0.0.1
+yasn run dev
 ```
 
 ## Экспортированные функции backend
@@ -57,3 +45,13 @@ Invoke-RestMethod -Method Post `
   -ContentType "application/json; charset=utf-8" `
   -Body $body
 ```
+
+## Примеры языковых конструкций
+
+- `тест.яс` — базовые конструкции
+- `типы_и_циклы.яс` — типы данных и циклы
+- `функции.яс` — функции
+- `модули.яс` — модульная система
+- `асинхронность.яс` — асинхронное выполнение
+- `выборочный_импорт.яс` — выборочный импорт
+- `алиасы_и_namespace.яс` — алиасы и пространства имён

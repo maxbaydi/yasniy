@@ -5,10 +5,12 @@ from dataclasses import dataclass
 from . import ast
 from .diagnostics import YasnyError
 from .types import (
+    ANY,
     BOOL,
     FLOAT,
     INT,
     STRING,
+    TASK,
     VOID,
     FunctionSignature,
     Type,
@@ -61,6 +63,55 @@ class TypeChecker:
             return_type=STRING,
             builtin=True,
         )
+        self.function_signatures["пауза"] = FunctionSignature(
+            name="пауза",
+            params=[INT],
+            return_type=VOID,
+            builtin=True,
+        )
+        self.function_signatures["строка"] = FunctionSignature(
+            name="строка",
+            params=[ANY],
+            return_type=STRING,
+            builtin=True,
+        )
+        self.function_signatures["число"] = FunctionSignature(
+            name="число",
+            params=[ANY],
+            return_type=INT,
+            builtin=True,
+        )
+        self.function_signatures["запустить"] = FunctionSignature(
+            name="запустить",
+            params=[STRING],
+            return_type=TASK,
+            builtin=True,
+            varargs=True,
+        )
+        self.function_signatures["готово"] = FunctionSignature(
+            name="готово",
+            params=[TASK],
+            return_type=BOOL,
+            builtin=True,
+        )
+        self.function_signatures["ожидать"] = FunctionSignature(
+            name="ожидать",
+            params=[TASK],
+            return_type=ANY,
+            builtin=True,
+        )
+        self.function_signatures["ожидать_все"] = FunctionSignature(
+            name="ожидать_все",
+            params=[list_of(TASK)],
+            return_type=list_of(ANY),
+            builtin=True,
+        )
+        self.function_signatures["отменить"] = FunctionSignature(
+            name="отменить",
+            params=[TASK],
+            return_type=BOOL,
+            builtin=True,
+        )
 
     def check(self, program: ast.Program) -> CheckResult:
         function_nodes: list[ast.FuncDecl] = []
@@ -77,6 +128,7 @@ class TypeChecker:
                     params=param_types,
                     return_type=return_type,
                     builtin=False,
+                    is_async=stmt.is_async,
                 )
                 function_nodes.append(stmt)
                 function_positions[stmt.name] = (stmt.line, stmt.col)
@@ -101,6 +153,8 @@ class TypeChecker:
                 raise YasnyError("Функция main должна быть без параметров", line, col, self.path)
             if main_sig.return_type != VOID:
                 raise YasnyError("Функция main должна возвращать Пусто", line, col, self.path)
+            if main_sig.is_async:
+                raise YasnyError("Функция main не может быть асинхронной", line, col, self.path)
 
         return CheckResult(function_signatures=self.function_signatures.copy())
 
@@ -350,6 +404,13 @@ class TypeChecker:
                 return t
             raise YasnyError(f"Неизвестный унарный оператор: {expr.op}", expr.line, expr.col, self.path)
 
+        if isinstance(expr, ast.AwaitExpr):
+            operand_t = self._check_expr(expr.operand)
+            if not is_assignable(TASK, operand_t):
+                raise YasnyError("Оператор 'ждать' принимает только Задача", expr.line, expr.col, self.path)
+            expr.inferred_type = ANY
+            return ANY
+
         if isinstance(expr, ast.BinaryOp):
             left_t = self._check_expr(expr.left)
             right_t = self._check_expr(expr.right)
@@ -449,6 +510,9 @@ class TypeChecker:
                         expr.col,
                         self.path,
                     )
+            if sig.is_async:
+                expr.inferred_type = TASK
+                return TASK
             expr.inferred_type = sig.return_type
             return sig.return_type
 
@@ -503,6 +567,65 @@ class TypeChecker:
             if arg_types:
                 raise YasnyError("ввод() не принимает аргументы", expr.line, expr.col, self.path)
             return STRING
+        if name == "пауза":
+            if len(arg_types) != 1:
+                raise YasnyError("пауза(мс) принимает ровно 1 аргумент", expr.line, expr.col, self.path)
+            if not is_assignable(INT, arg_types[0]):
+                raise YasnyError("пауза(мс) принимает только Цел", expr.line, expr.col, self.path)
+            return VOID
+        if name == "строка":
+            if len(arg_types) != 1:
+                raise YasnyError("строка(x) принимает ровно 1 аргумент", expr.line, expr.col, self.path)
+            return STRING
+        if name == "число":
+            if len(arg_types) != 1:
+                raise YasnyError("число(x) принимает ровно 1 аргумент", expr.line, expr.col, self.path)
+            return INT
+        if name == "запустить":
+            if len(arg_types) < 1:
+                raise YasnyError("запустить(имя, ...args) требует минимум 1 аргумент", expr.line, expr.col, self.path)
+            if not is_assignable(STRING, arg_types[0]):
+                raise YasnyError("Первый аргумент запустить(...) должен быть Строка", expr.line, expr.col, self.path)
+            return TASK
+        if name == "готово":
+            if len(arg_types) != 1:
+                raise YasnyError("готово(задача) принимает ровно 1 аргумент", expr.line, expr.col, self.path)
+            if not is_assignable(TASK, arg_types[0]):
+                raise YasnyError("готово(задача) принимает только Задача", expr.line, expr.col, self.path)
+            return BOOL
+        if name == "ожидать":
+            if len(arg_types) not in (1, 2):
+                raise YasnyError("ожидать(задача[, таймаут_мс]) принимает 1 или 2 аргумента", expr.line, expr.col, self.path)
+            if not is_assignable(TASK, arg_types[0]):
+                raise YasnyError("Первый аргумент ожидать(...) должен быть Задача", expr.line, expr.col, self.path)
+            if len(arg_types) == 2 and not is_assignable(INT, arg_types[1]):
+                raise YasnyError("Второй аргумент ожидать(...) должен быть Цел", expr.line, expr.col, self.path)
+            return ANY
+        if name == "ожидать_все":
+            if len(arg_types) not in (1, 2):
+                raise YasnyError(
+                    "ожидать_все(список_задач[, таймаут_мс]) принимает 1 или 2 аргумента",
+                    expr.line,
+                    expr.col,
+                    self.path,
+                )
+            expected_tasks = list_of(TASK)
+            if not is_assignable(expected_tasks, arg_types[0]):
+                raise YasnyError(
+                    "Первый аргумент ожидать_все(...) должен быть Список[Задача]",
+                    expr.line,
+                    expr.col,
+                    self.path,
+                )
+            if len(arg_types) == 2 and not is_assignable(INT, arg_types[1]):
+                raise YasnyError("Второй аргумент ожидать_все(...) должен быть Цел", expr.line, expr.col, self.path)
+            return list_of(ANY)
+        if name == "отменить":
+            if len(arg_types) != 1:
+                raise YasnyError("отменить(задача) принимает ровно 1 аргумент", expr.line, expr.col, self.path)
+            if not is_assignable(TASK, arg_types[0]):
+                raise YasnyError("отменить(задача) принимает только Задача", expr.line, expr.col, self.path)
+            return BOOL
         raise YasnyError(f"Неизвестная встроенная функция: {name}", expr.line, expr.col, self.path)
 
     def _push_scope(self) -> None:
