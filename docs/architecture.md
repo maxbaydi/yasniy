@@ -8,20 +8,20 @@
 
 ## 2. Ключевые модули
 
-- `yasny/lexer.py` — токенизация, `NEWLINE/INDENT/DEDENT`, запрет TAB
-- `yasny/parser.py` — AST и приоритетный разбор выражений
-- `yasny/module_loader.py` — модульная линковка, импорты, экспорты, алиасы, пути, цикл-детект
-- `yasny/deps.py` — установка прямых/транзитивных зависимостей и lock-файл (`yasn deps`)
-- `yasny/checker.py` — статическая типизация, области видимости, сигнатуры функций
-- `yasny/optimizer.py` — constant folding, удаление мертвого кода, упрощение веток
-- `yasny/compiler.py` — генерация стекового байткода
-- `yasny/bc.py` — сериализация/десериализация `.ybc`
-- `yasny/vm.py` — интерпретация байткода
-- `yasny/backend_core.py` — backend-ядро языка (компиляция + VM)
-- `yasny/server.py` — HTTP-сервер `yasn serve` поверх backend-ядра
-- `yasny/project_runner.py` — режимы `yasn run dev` / `yasn start`
-- `yasny/app_bundle.py` — упаковка `.yapp`, установка приложений
-- `yasny/cli.py` — интерфейс командной строки
+- `yasn/lexer.py` — токенизация, `NEWLINE/INDENT/DEDENT`, запрет TAB
+- `yasn/parser.py` — AST и приоритетный разбор выражений
+- `yasn/module_loader.py` — модульная линковка, импорты, экспорты, алиасы, пути, цикл-детект
+- `yasn/deps.py` — установка прямых/транзитивных зависимостей и lock-файл (`yasn deps`)
+- `yasn/checker.py` — статическая типизация, области видимости, сигнатуры функций
+- `yasn/optimizer.py` — constant folding, удаление мертвого кода, упрощение веток
+- `yasn/compiler.py` — генерация стекового байткода
+- `yasn/bc.py` — сериализация/десериализация `.ybc`
+- `yasn/vm.py` — интерпретация байткода
+- `yasn/backend_core.py` — backend-ядро языка (компиляция + VM)
+- `yasn/server.py` — HTTP-сервер `yasn serve` поверх backend-ядра
+- `yasn/project_runner.py` — режимы `yasn run dev` / `yasn start`
+- `yasn/app_bundle.py` — упаковка `.yapp`, установка приложений
+- `yasn/cli.py` — интерфейс командной строки
 
 ## 3. Лексер и парсер
 
@@ -43,7 +43,7 @@
 
 Что делает резолвер:
 
-1. Находит проектный контекст (`yasn.toml`, fallback: `yasny.toml`, затем корень с `pyproject.toml`)
+1. Находит проектный контекст (`yasn.toml`, fallback: корень с `pyproject.toml`)
 2. Разрешает пути модулей
 3. Загружает AST зависимостей
 4. Проверяет циклические импорты

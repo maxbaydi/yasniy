@@ -93,4 +93,3 @@ if ($Editable) {
 
 Write-Host "[yasn] Done. Check:"
 Write-Host "  yasn --help"
-Write-Host "[yasn] Legacy alias remains available: yasny --help"

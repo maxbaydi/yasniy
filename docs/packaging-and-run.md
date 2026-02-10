@@ -1,4 +1,4 @@
-﻿# Упаковка, установка и запуск приложений
+# Упаковка, установка и запуск приложений
 
 ## 1. Артефакты
 
@@ -37,7 +37,7 @@ yasn install-app app.яс --name app_name
 - `%APPDATA%\yasn\apps\app_name.yapp`
 - `%APPDATA%\yasn\bin\app_name.cmd`
 
-Launcher использует `yasn run-app ...` с fallback на `py -m yasn`, затем `py/python -m yasny`.
+Launcher использует `yasn run-app ...` с fallback на `py -m yasn`, затем `python -m yasn`.
 
 ## 5. Обновление приложения
 

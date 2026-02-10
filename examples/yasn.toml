@@ -1,6 +1,6 @@
 [modules]
-root = "backend"
-paths = ["backend/lib"]
+root = "."
+paths = ["lib", "backend/lib"]
 
 [run]
 backend = "backend/main.яс"

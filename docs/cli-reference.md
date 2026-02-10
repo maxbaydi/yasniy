@@ -35,7 +35,7 @@ yasn run dev
 yasn run start
 ```
 
-`yasn run dev/start` читает `yasn.toml` (или legacy `yasny.toml`) и поднимает backend.
+`yasn run dev/start` читает `yasn.toml` и поднимает backend.
 
 ## 2. `dev`
 
@@ -148,7 +148,7 @@ yasn paths --short
 
 ## 12. `deps`
 
-Управление зависимостями из секции `[dependencies]` в `yasn.toml`/`yasny.toml`.
+Управление зависимостями из секции `[dependencies]` в `yasn.toml`.
 
 Установка зависимостей:
 
