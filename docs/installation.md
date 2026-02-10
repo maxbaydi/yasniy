@@ -1,20 +1,18 @@
-﻿# Установка компилятора ЯСНЫЙ
+﻿# Установка `yasn`
 
-Ниже описаны рабочие варианты установки команды `yasn`.
+Ниже описан нативный способ установки компилятора/рантайма ЯСНЫЙ без Python.
 
 ## 1. Требования
 
-- Python 3.11+
-- pip
+Для сборки из исходников нужен .NET SDK 10.0+.
 
 Проверка:
 
 ```powershell
-python --version
-python -m pip --version
+dotnet --version
 ```
 
-## 2. Рекомендуемо для Windows
+## 2. Windows (рекомендуемый путь)
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/install-global.ps1
@@ -22,62 +20,69 @@ powershell -ExecutionPolicy Bypass -File scripts/install-global.ps1
 
 Скрипт:
 
-- устанавливает пакет (`pip --user`)
-- добавляет Python user `Scripts` в USER PATH
-- добавляет этот путь в текущую сессию
+- публикует self-contained бинарник `yasn.exe`;
+- копирует его в `%LOCALAPPDATA%\yasn\bin`;
+- добавляет этот каталог в User PATH (если отсутствует);
+- обновляет PATH в текущей сессии.
 
 Проверка:
 
 ```powershell
 yasn --help
+yasn version
 ```
 
-## 3. Режим разработки
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/install-global.ps1 -Editable
-```
-
-## 4. Установка через pipx
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/install-global.ps1 -Pipx
-```
-
-## 5. Ручная установка
-
-```powershell
-python -m pip install --user .
-```
-
-Если `yasn` не найден:
-
-```powershell
-python -c "import sysconfig; print(sysconfig.get_path('scripts', scheme='nt_user'))"
-```
-
-Добавьте выведенный каталог в PATH.
-
-## 6. macOS/Linux
+## 3. Linux/macOS
 
 ```bash
-python3 -m pip install --user .
-python3 -m yasn --help
+bash scripts/install-global.sh
 ```
 
-## 7. Проверка после установки
+Скрипт:
 
-```powershell
+- публикует self-contained бинарник для текущей ОС/архитектуры;
+- устанавливает его в `~/.local/share/yasn/toolchain/<runtime>/yasn`;
+- создаёт/обновляет `~/.local/bin/yasn`.
+
+Проверка:
+
+```bash
 yasn --help
-yasn paths
+yasn version
 ```
 
-## 8. Fallback без PATH
+Если `yasn` не найден, добавьте `~/.local/bin` в `PATH`.
 
-Даже без глобальной команды можно запускать так:
+## 4. Ручная публикация
+
+Windows x64:
 
 ```powershell
-python -m yasn --help
-python -m yasn run examples/тест.яс
+powershell -ExecutionPolicy Bypass -File scripts/publish-native.ps1 -Runtime win-x64
 ```
 
+После публикации бинарник находится в:
+
+`native/yasn-native/bin/Release/net10.0/win-x64/publish/yasn.exe`
+
+Linux x64:
+
+```bash
+dotnet publish native/yasn-native/yasn-native.csproj \
+  -c Release -r linux-x64 --self-contained true \
+  /p:PublishSingleFile=true /p:PublishTrimmed=false
+```
+
+macOS arm64:
+
+```bash
+dotnet publish native/yasn-native/yasn-native.csproj \
+  -c Release -r osx-arm64 --self-contained true \
+  /p:PublishSingleFile=true /p:PublishTrimmed=false
+```
+
+## 5. Запуск без глобальной установки
+
+```powershell
+dotnet run --project native/yasn-native/yasn-native.csproj -- run examples/тест.яс
+```

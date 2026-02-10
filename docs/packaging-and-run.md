@@ -1,4 +1,4 @@
-# Упаковка, установка и запуск приложений
+﻿# Упаковка, установка и запуск приложений
 
 ## 1. Артефакты
 
@@ -8,7 +8,7 @@
 
 ## 2. Когда использовать `.ybc`
 
-Используйте `.ybc`, если хотите отделить компиляцию от выполнения:
+Если хотите разделить компиляцию и выполнение:
 
 ```powershell
 yasn build app.яс -o app.ybc
@@ -17,14 +17,14 @@ yasn exec app.ybc
 
 ## 3. Когда использовать `.yapp`
 
-Используйте `.yapp`, если нужен единый переносимый файл приложения:
+Если нужен переносимый контейнер приложения:
 
 ```powershell
 yasn pack app.яс -o app.yapp --name app_name
 yasn run-app app.yapp
 ```
 
-`pack` выполняет полный compile pipeline, включая модульный резолвинг.
+`pack` выполняет полный pipeline, включая модульный резолвинг.
 
 ## 4. Установка как команды
 
@@ -32,31 +32,32 @@ yasn run-app app.yapp
 yasn install-app app.яс --name app_name
 ```
 
-Создаются:
+Windows:
 
 - `%APPDATA%\yasn\apps\app_name.yapp`
 - `%APPDATA%\yasn\bin\app_name.cmd`
 
-Launcher использует `yasn run-app ...` с fallback на `py -m yasn`, затем `python -m yasn`.
+Linux/macOS:
+
+- `~/.yasn/apps/app_name.yapp`
+- `~/.yasn/bin/app_name`
+
+Launcher использует `yasn run-app`.
 
 ## 5. Обновление приложения
 
 Повторно выполните `install-app` с тем же `--name`.
 
-## 6. Удаление
+## 6. Удаление приложения
 
-Удалите вручную:
-
-- `%APPDATA%\yasn\apps\app_name.yapp`
-- `%APPDATA%\yasn\bin\app_name.cmd`
+Удалите вручную файлы launcher и `.yapp` из каталогов выше.
 
 ## 7. PATH для пользовательских команд
 
-Путь до каталога launcher:
+Путь launcher-каталога:
 
 ```powershell
 yasn paths --short
 ```
 
-Добавьте его в PATH, если команда `app_name` не распознается.
-
+Добавьте этот путь в PATH, если команда `app_name` не находится.

@@ -1,45 +1,41 @@
-# ЯСНЫЙ (`.яс`)
+﻿# ЯСНЫЙ (`.яс`)
 
-ЯСНЫЙ — строготипизированный язык с русскоязычным синтаксисом и отступами в стиле Python.
+ЯСНЫЙ — самостоятельный язык с собственным компилятором, байткодом и VM.
+Текущий toolchain полностью нативный (`native/yasn-native`, C#/.NET), без Python-зависимости.
 
-Репозиторий содержит:
+Репозиторий включает:
 
-- компилятор и типизатор;
+- нативный компилятор и VM;
 - модульную систему (`подключить`, `из ... подключить`, `как`, `экспорт`);
-- зависимости проекта через `yasn.toml` (`yasn deps`, включая транзитивные и lock-файл);
-- генерацию байткода (`.ybc`);
-- виртуальную машину;
-- асинхронные задачи VM (`асинхронная функция`, `ждать`, `отменить`);
-- backend-ядро (`yasn/backend_core.py`);
-- HTTP-сервер (`yasn serve`);
-- упаковку приложений (`.yapp`) и установку консольных команд.
+- нативный type checker;
+- менеджер зависимостей проекта (`yasn deps`) с lock-файлом;
+- форматы артефактов `.ybc` и `.yapp`;
+- backend-режим (`yasn serve`, `yasn run dev/start`);
+- тестовый раннер (`yasn test`);
+- установку приложений как команд (`yasn install-app`).
 
-## Быстрый запуск
+## Быстрый запуск из исходников
 
 ```powershell
-python -m yasn run examples/тест.яс
-python -m yasn deps
-python -m yasn deps list --all
+dotnet run --project native/yasn-native/yasn-native.csproj -- run examples/тест.яс
+dotnet run --project native/yasn-native/yasn-native.csproj -- test
 ```
 
-## Глобальная установка команды `yasn`
+## Глобальная установка `yasn`
+
+Windows:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/install-global.ps1
 yasn --help
 ```
 
-## Документация
+Linux/macOS:
 
-- Индекс: `docs/index.md`
-- Установка: `docs/installation.md`
-- Быстрый старт: `docs/quickstart.md`
-- Обучение языку: `docs/language-tutorial.md`
-- Формальный справочник: `docs/language-reference.md`
-- CLI: `docs/cli-reference.md`
-- Упаковка и запуск: `docs/packaging-and-run.md`
-- Troubleshooting: `docs/troubleshooting.md`
-- Архитектура: `docs/architecture.md`
+```bash
+bash scripts/install-global.sh
+yasn --help
+```
 
 ## Примеры
 
@@ -47,23 +43,25 @@ yasn --help
 yasn run examples/тест.яс
 yasn run examples/функции.яс
 yasn run examples/модули.яс
-yasn run examples/алиасы_и_namespace.яс
-yasn run examples/типы_и_циклы.яс
 yasn run examples/асинхронность.яс
+yasn test
 ```
 
-## Backend сервер
-
-```toml
-# yasn.toml
-[run]
-backend = "backend/main.яс"
-host = "127.0.0.1"
-port = 8000
-```
+Backend из `yasn.toml`:
 
 ```powershell
 yasn run dev
-# или
-yasn serve backend/main.яс --host 127.0.0.1 --port 8000
 ```
+
+## Документация
+
+- Индекс: `docs/index.md`
+- Установка: `docs/installation.md`
+- Быстрый старт: `docs/quickstart.md`
+- Учебник: `docs/language-tutorial.md`
+- Справочник языка: `docs/language-reference.md`
+- CLI: `docs/cli-reference.md`
+- Упаковка и запуск: `docs/packaging-and-run.md`
+- Архитектура: `docs/architecture.md`
+- Troubleshooting: `docs/troubleshooting.md`
+- Нативный toolchain: `docs/native-toolchain.md`

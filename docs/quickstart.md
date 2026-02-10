@@ -1,6 +1,6 @@
-# Быстрый старт
+﻿# Быстрый старт
 
-Этот сценарий проходит полный путь: исходник -> проверка -> запуск -> байткод -> приложение.
+Сценарий проходит путь: исходник -> проверка -> запуск -> тесты -> байткод -> приложение.
 
 ## 1. Создайте программу
 
@@ -18,82 +18,77 @@
 yasn check hello.яс
 ```
 
-Ожидаемый вывод:
-
-```text
-Проверка пройдена: ошибок не найдено.
-```
-
 ## 3. Запуск
 
 ```powershell
 yasn run hello.яс
 ```
 
-## 4. Сборка байткода
+## 4. Добавьте простой тест
+
+`tests/hello_test.яс`:
+
+```text
+функция main() -> Пусто:
+    утверждать_равно(2 + 2, 4)
+    вернуть пусто
+```
+
+Запуск тестов:
+
+```powershell
+yasn test
+```
+
+## 5. Сборка байткода
 
 ```powershell
 yasn build hello.яс -o hello.ybc
 ```
 
-## 5. Запуск байткода
+## 6. Запуск байткода
 
 ```powershell
 yasn exec hello.ybc
 ```
 
-## 6. Упаковка приложения
+## 7. Упаковка приложения
 
 ```powershell
 yasn pack hello.яс -o hello.yapp --name hello_app
 yasn run-app hello.yapp
 ```
 
-## 7. Установка как консольной команды
+## 8. Установка как команды
 
 ```powershell
 yasn install-app hello.яс --name hello
 hello
 ```
 
-## 8. Примеры в репозитории
+## 9. Примеры из репозитория
 
 ```powershell
 yasn run examples/тест.яс
 yasn run examples/функции.яс
 yasn run examples/модули.яс
 yasn run examples/алиасы_и_namespace.яс
-yasn run examples/типы_и_циклы.яс
+yasn run examples/асинхронность.яс
+yasn test
 ```
 
-## 9. Установка зависимостей проекта (если есть)
+## 10. Зависимости проекта
 
-Если в `yasn.toml` указана секция `[dependencies]`, установите зависимости:
+Если в `yasn.toml` есть `[dependencies]`:
 
 ```powershell
 yasn deps
-```
-
-После установки модули из `.yasn/deps` доступны для `подключить "..."`
-без ручного добавления путей в `modules.paths`.
-
-Проверить состояние (включая транзитивные зависимости из lock-файла):
-
-```powershell
 yasn deps list --all
 ```
 
-## 10. Если глобальная команда не настроена
+## 11. Backend одной командой
 
-Запускайте через модуль Python:
-
-```powershell
-python -m yasn run hello.яс
-```
-
-## 11. Запуск backend одной командой
-
-Создайте `yasn.toml` в корне проекта:
+`yasn.toml`:
 
 ```toml
 [run]
@@ -102,8 +97,14 @@ host = "127.0.0.1"
 port = 8000
 ```
 
-Теперь можно запускать backend одной командой:
+Запуск:
 
 ```powershell
 yasn run dev
+```
+
+## 12. Запуск без глобальной установки
+
+```powershell
+dotnet run --project native/yasn-native/yasn-native.csproj -- run hello.яс
 ```

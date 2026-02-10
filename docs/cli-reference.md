@@ -1,65 +1,52 @@
-# CLI справочник `yasn`
+﻿# CLI справочник `yasn`
 
-Проверить полный список:
+Показать встроенную справку:
 
 ```powershell
 yasn --help
 ```
 
-Fallback без PATH:
-
-```powershell
-python -m yasn --help
-```
-
-## Общий синтаксис
+Общий вид:
 
 ```text
 yasn <команда> [аргументы]
 ```
 
-## 1. `run`
+## `run`
 
-Два режима:
-
-1. Запуск файла `.яс`:
+Запуск `.яс` файла:
 
 ```powershell
 yasn run app.яс
 ```
 
-2. Запуск проектного режима:
+Запуск проектных режимов:
 
 ```powershell
 yasn run dev
 yasn run start
 ```
 
-`yasn run dev/start` читает `yasn.toml` и поднимает backend.
+Опции для `dev/start`:
 
-## 2. `dev`
-
-Прямой shortcut для режима разработки:
-
-```powershell
-yasn dev
+```text
+--backend <path>
+--host <host>
+--port <port>
 ```
 
-То же самое, что `yasn run dev`.
+## `dev` и `start`
 
-## 3. `start`
-
-Прямой shortcut для start-режима:
+Короткие команды, эквивалентные `yasn run dev` и `yasn run start`:
 
 ```powershell
+yasn dev --backend backend/main.яс --port 8000
 yasn start
 ```
 
-То же самое, что `yasn run start`.
+## `serve`
 
-## 4. `serve`
-
-Запуск HTTP backend поверх ЯСНЫЙ файла:
+Запуск HTTP backend поверх файла ЯСНЫЙ:
 
 ```powershell
 yasn serve backend/main.яс --host 127.0.0.1 --port 8000
@@ -71,7 +58,7 @@ HTTP API:
 - `GET /functions`
 - `POST /call`
 
-Пример запроса:
+Пример запроса `POST /call`:
 
 ```json
 {
@@ -81,15 +68,33 @@ HTTP API:
 }
 ```
 
-## 5. `check`
+## `check`
 
-Проверка синтаксиса и типов:
+Проверка исходника (синтаксис + модульный резолвинг + type checker):
 
 ```powershell
 yasn check app.яс
 ```
 
-## 6. `build`
+## `test`
+
+Запуск тестов `.яс`:
+
+```powershell
+yasn test
+yasn test tests
+yasn test tests --pattern "*_test.яс"
+yasn test --fail-fast --verbose
+```
+
+По умолчанию ищет шаблоны:
+
+- `*_test.яс`
+- `*.test.яс`
+
+Если передан файл, запускается только он.
+
+## `build`
 
 Компиляция в `.ybc`:
 
@@ -98,7 +103,7 @@ yasn build app.яс
 yasn build app.яс -o out.ybc
 ```
 
-## 7. `exec`
+## `exec`
 
 Запуск `.ybc`:
 
@@ -106,9 +111,9 @@ yasn build app.яс -o out.ybc
 yasn exec out.ybc
 ```
 
-## 8. `pack`
+## `pack`
 
-Упаковка `.яс` в `.yapp`:
+Упаковка в `.yapp`:
 
 ```powershell
 yasn pack app.яс
@@ -116,7 +121,7 @@ yasn pack app.яс -o app.yapp
 yasn pack app.яс --name my_app
 ```
 
-## 9. `run-app`
+## `run-app`
 
 Запуск `.yapp`:
 
@@ -124,55 +129,49 @@ yasn pack app.яс --name my_app
 yasn run-app app.yapp
 ```
 
-## 10. `install-app`
+## `install-app`
 
-Установка программы как пользовательской команды:
+Установка `.яс` приложения как пользовательской команды:
 
 ```powershell
 yasn install-app app.яс --name my_app
 ```
 
-Создает:
+Windows создаёт:
 
 - `%APPDATA%\yasn\apps\my_app.yapp`
 - `%APPDATA%\yasn\bin\my_app.cmd`
 
-## 11. `paths`
+Linux/macOS создаёт:
 
-Показ внутренних каталогов:
+- `~/.yasn/apps/my_app.yapp`
+- `~/.yasn/bin/my_app`
+
+## `paths`
+
+Показ рабочих каталогов:
 
 ```powershell
 yasn paths
 yasn paths --short
 ```
 
-## 12. `deps`
+## `deps`
 
-Управление зависимостями из секции `[dependencies]` в `yasn.toml`.
+Управление секцией `[dependencies]` из `yasn.toml`.
 
 Установка зависимостей:
 
 ```powershell
 yasn deps
-# или
 yasn deps install
-```
-
-Установка с очисткой локального кэша от неактуальных зависимостей:
-
-```powershell
 yasn deps install --clean
 ```
 
-Просмотр статуса:
+Проверка статуса:
 
 ```powershell
 yasn deps list
-```
-
-Показать также транзитивные зависимости из lock-файла:
-
-```powershell
 yasn deps list --all
 ```
 
@@ -180,33 +179,18 @@ yasn deps list --all
 
 - `git+https://...repo.git#v1.2.3`
 - `path:../relative/or/absolute/path`
-- `../relative/or/absolute/path` (как shorthand для `path:`)
+- `../relative/or/absolute/path` (шорткат для `path:`)
 
-Особенности:
+Lock-файл хранится в `.yasn/deps.lock.json`.
 
-- `yasn deps install` устанавливает прямые и транзитивные зависимости.
-- При конфликте двух транзитивных зависимостей с одинаковым именем, но разным источником/версией, команда завершится ошибкой.
-- Lock-файл сохраняется в `.yasn/deps.lock.json`.
-
-## 13. Конфиг `yasn.toml` для `dev/start`
-
-```toml
-[run]
-backend = "backend/main.яс"
-host = "127.0.0.1"
-port = 8000
-```
-
-После этого:
+## `version`
 
 ```powershell
-yasn run dev
+yasn version
 ```
 
-поднимет backend на ЯСНЫЙ одной командой.
-
-## 14. Коды возврата
+## Коды возврата
 
 - `0` — успех
-- `1` — ошибка компиляции/выполнения/конфигурации
+- `1` — ошибка выполнения/компиляции/тестов
 - `2` — ошибка аргументов CLI
