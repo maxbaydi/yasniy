@@ -48,6 +48,10 @@ class VirtualMachine:
             "пауза": self._builtin_sleep,
             "строка": self._builtin_to_string,
             "число": self._builtin_to_int,
+            "добавить": self._builtin_append,
+            "удалить": self._builtin_remove,
+            "ключи": self._builtin_keys,
+            "содержит": self._builtin_contains,
             "запустить": self._builtin_spawn,
             "готово": self._builtin_done,
             "ожидать": self._builtin_wait,
@@ -284,6 +288,42 @@ class VirtualMachine:
             except ValueError:
                 raise YasnError(f"Невозможно преобразовать '{val}' в число", path=self.path)
         return int(val)
+
+    def _builtin_append(self, args: list[object], _: list[object]) -> object:
+        if len(args) != 2:
+            raise YasnError("добавить(список, элемент) принимает ровно 2 аргумента", path=self.path)
+        target = args[0]
+        if not isinstance(target, list):
+            raise YasnError("Первый аргумент добавить(...) должен быть списком", path=self.path)
+        target.append(args[1])
+        return None
+
+    def _builtin_remove(self, args: list[object], _: list[object]) -> object:
+        if len(args) != 2:
+            raise YasnError("удалить(список, индекс) принимает ровно 2 аргумента", path=self.path)
+        target = args[0]
+        if not isinstance(target, list):
+            raise YasnError("Первый аргумент удалить(...) должен быть списком", path=self.path)
+        idx = self._coerce_non_negative_int(args[1], "удалить(..., индекс)")
+        if idx >= len(target):
+            raise YasnError(f"Индекс {idx} выходит за границы списка длиной {len(target)}", path=self.path)
+        return target.pop(idx)
+
+    def _builtin_keys(self, args: list[object], _: list[object]) -> object:
+        if len(args) != 1:
+            raise YasnError("ключи(словарь) принимает ровно 1 аргумент", path=self.path)
+        target = args[0]
+        if not isinstance(target, dict):
+            raise YasnError("Аргумент ключи(...) должен быть словарём", path=self.path)
+        return list(target.keys())
+
+    def _builtin_contains(self, args: list[object], _: list[object]) -> object:
+        if len(args) != 2:
+            raise YasnError("содержит(словарь, ключ) принимает ровно 2 аргумента", path=self.path)
+        target = args[0]
+        if not isinstance(target, dict):
+            raise YasnError("Первый аргумент содержит(...) должен быть словарём", path=self.path)
+        return args[1] in target
 
     def _builtin_spawn(self, args: list[object], globals_store: list[object]) -> object:
         if len(args) < 1:

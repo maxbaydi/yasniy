@@ -81,6 +81,30 @@ class TypeChecker:
             return_type=INT,
             builtin=True,
         )
+        self.function_signatures["добавить"] = FunctionSignature(
+            name="добавить",
+            params=[list_of(ANY), ANY],
+            return_type=VOID,
+            builtin=True,
+        )
+        self.function_signatures["удалить"] = FunctionSignature(
+            name="удалить",
+            params=[list_of(ANY), INT],
+            return_type=ANY,
+            builtin=True,
+        )
+        self.function_signatures["ключи"] = FunctionSignature(
+            name="ключи",
+            params=[ANY],
+            return_type=list_of(ANY),
+            builtin=True,
+        )
+        self.function_signatures["содержит"] = FunctionSignature(
+            name="содержит",
+            params=[ANY, ANY],
+            return_type=BOOL,
+            builtin=True,
+        )
         self.function_signatures["запустить"] = FunctionSignature(
             name="запустить",
             params=[STRING],
@@ -349,7 +373,9 @@ class TypeChecker:
 
         if isinstance(expr, ast.ListLiteral):
             if not expr.elements:
-                raise YasnError("Пустой список без аннотации типа недопустим", expr.line, expr.col, self.path)
+                result = list_of(ANY)
+                expr.inferred_type = result
+                return result
             element_types = [self._check_expr(e) for e in expr.elements]
             first_t = element_types[0]
             for t, item in zip(element_types[1:], expr.elements[1:], strict=True):
@@ -366,7 +392,9 @@ class TypeChecker:
 
         if isinstance(expr, ast.DictLiteral):
             if not expr.entries:
-                raise YasnError("Пустой словарь без аннотации типа недопустим", expr.line, expr.col, self.path)
+                result = Type("Словарь", (ANY, ANY))
+                expr.inferred_type = result
+                return result
             first_key_t = self._check_expr(expr.entries[0][0])
             first_val_t = self._check_expr(expr.entries[0][1])
             for key, val in expr.entries[1:]:
@@ -581,6 +609,61 @@ class TypeChecker:
             if len(arg_types) != 1:
                 raise YasnError("число(x) принимает ровно 1 аргумент", expr.line, expr.col, self.path)
             return INT
+        if name == "добавить":
+            if len(arg_types) != 2:
+                raise YasnError("добавить(список, элемент) принимает ровно 2 аргумента", expr.line, expr.col, self.path)
+            list_t = arg_types[0]
+            elem_t = arg_types[1]
+            for variant in variants_of(list_t):
+                if variant.name != "Список":
+                    raise YasnError("Первый аргумент добавить(...) должен быть Список[Т]", expr.line, expr.col, self.path)
+                if not is_assignable(variant.args[0], elem_t):
+                    raise YasnError(
+                        f"Элемент типа {elem_t} не совместим со Список[{variant.args[0]}]",
+                        expr.line,
+                        expr.col,
+                        self.path,
+                    )
+            return VOID
+        if name == "удалить":
+            if len(arg_types) != 2:
+                raise YasnError("удалить(список, индекс) принимает ровно 2 аргумента", expr.line, expr.col, self.path)
+            list_t = arg_types[0]
+            idx_t = arg_types[1]
+            elem_types: list[Type] = []
+            for variant in variants_of(list_t):
+                if variant.name != "Список":
+                    raise YasnError("Первый аргумент удалить(...) должен быть Список[Т]", expr.line, expr.col, self.path)
+                elem_types.append(variant.args[0])
+            if not is_assignable(INT, idx_t):
+                raise YasnError("Второй аргумент удалить(...) должен быть Цел", expr.line, expr.col, self.path)
+            return union_of(*elem_types)
+        if name == "ключи":
+            if len(arg_types) != 1:
+                raise YasnError("ключи(словарь) принимает ровно 1 аргумент", expr.line, expr.col, self.path)
+            dict_t = arg_types[0]
+            key_types: list[Type] = []
+            for variant in variants_of(dict_t):
+                if variant.name != "Словарь":
+                    raise YasnError("Аргумент ключи(...) должен быть Словарь[К, В]", expr.line, expr.col, self.path)
+                key_types.append(variant.args[0])
+            return list_of(union_of(*key_types))
+        if name == "содержит":
+            if len(arg_types) != 2:
+                raise YasnError("содержит(словарь, ключ) принимает ровно 2 аргумента", expr.line, expr.col, self.path)
+            dict_t = arg_types[0]
+            key_t = arg_types[1]
+            for variant in variants_of(dict_t):
+                if variant.name != "Словарь":
+                    raise YasnError("Первый аргумент содержит(...) должен быть Словарь[К, В]", expr.line, expr.col, self.path)
+                if not is_assignable(variant.args[0], key_t):
+                    raise YasnError(
+                        f"Ключ типа {key_t} не совместим со Словарь[{variant.args[0]}, ...]",
+                        expr.line,
+                        expr.col,
+                        self.path,
+                    )
+            return BOOL
         if name == "запустить":
             if len(arg_types) < 1:
                 raise YasnError("запустить(имя, ...args) требует минимум 1 аргумент", expr.line, expr.col, self.path)
