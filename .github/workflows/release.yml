@@ -5,6 +5,9 @@ on:
     tags:
       - "v*"
 
+permissions:
+  contents: write
+
 jobs:
   build-installer:
     runs-on: windows-2022
@@ -49,10 +52,29 @@ jobs:
         run: |
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer/yasn.iss
 
+      - name: Verify installer output
+        id: installer
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem -Path installer/dist -Filter "Yasn-Setup-*.exe" -File -ErrorAction SilentlyContinue
+          if (-not $files) {
+            Write-Error "Installer output not found in installer/dist (pattern: Yasn-Setup-*.exe)."
+            if (Test-Path installer/dist) {
+              Get-ChildItem installer/dist -Force | Format-Table -AutoSize | Out-String | Write-Host
+            } else {
+              Write-Host "Directory installer/dist does not exist."
+            }
+            exit 1
+          }
+          $assetPath = $files[0].FullName
+          Write-Host "Release asset: $assetPath"
+          "asset_path=$assetPath" >> $env:GITHUB_OUTPUT
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: installer/dist/Yasn-Setup-*.exe
+          files: ${{ steps.installer.outputs.asset_path }}
+          fail_on_unmatched_files: true
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
