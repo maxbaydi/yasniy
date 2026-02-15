@@ -4,6 +4,13 @@ on:
   push:
     tags:
       - "v*"
+      - "[0-9]*.[0-9]*.[0-9]*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. 2.0.6 or v2.0.6)"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -25,9 +32,36 @@ jobs:
             -c Release -r win-x64 --self-contained true `
             /p:PublishSingleFile=true /p:PublishTrimmed=false
 
+      - name: Resolve release metadata
+        id: release_meta
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $rawRef = "${{ inputs.version }}".Trim()
+          } else {
+            $rawRef = "${{ github.ref_name }}".Trim()
+          }
+
+          if (-not $rawRef) {
+            throw "Release version is empty."
+          }
+
+          $tag = if ($rawRef.StartsWith("v")) { $rawRef } else { "v$rawRef" }
+          $version = $tag.TrimStart("v")
+
+          if ($version -notmatch '^\d+\.\d+\.\d+([-.][0-9A-Za-z.-]+)?$') {
+            throw "Version '$version' is not semver-like. Use 1.2.3 or 1.2.3-rc.1."
+          }
+
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+          Write-Host "Release tag: $tag"
+          Write-Host "Installer version: $version"
+
       - name: Set version from tag
         run: |
-          $version = "${{ github.ref_name }}".TrimStart('v')
+          $version = "${{ steps.release_meta.outputs.version }}"
           (Get-Content installer/yasn.iss) -replace 'MyAppVersion "[\d.]+"', "MyAppVersion `"$version`"" | Set-Content installer/yasn.iss
 
       - name: Prepare staging
@@ -73,6 +107,8 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.release_meta.outputs.tag }}
+          name: ${{ steps.release_meta.outputs.tag }}
           files: ${{ steps.installer.outputs.asset_path }}
           fail_on_unmatched_files: true
           generate_release_notes: true
