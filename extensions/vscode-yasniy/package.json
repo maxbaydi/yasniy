@@ -6,7 +6,7 @@
   "publisher": "yasniy",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yasniy/yasniy"
+    "url": "https://github.com/maxbaydi/yasniy"
   },
   "engines": {
     "vscode": "^1.74.0"

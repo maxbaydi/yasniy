@@ -1,7 +1,7 @@
 #define MyAppName "YASN"
 #define MyAppVersion "0.2.0"
 #define MyAppPublisher "Yasniy"
-#define MyAppURL "https://github.com/yasniy/yasniy"
+#define MyAppURL "https://github.com/maxbaydi/yasniy"
 #define MyAppExeName "yasn.exe"
 #define BinDir "{app}\bin"
 #define PackagesDir "{app}\packages"

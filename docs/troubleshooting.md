@@ -7,7 +7,7 @@ title: Troubleshooting и диагностика
 
 ## 1. `yasn` не распознан как команда
 
-**Windows:** установите через [Yasn-Setup-x.x.x.exe](https://github.com/yasniy/yasniy/releases). Убедитесь, что отмечено «Добавить в PATH».
+**Windows:** установите через [Yasn-Setup-x.x.x.exe](https://github.com/maxbaydi/yasniy/releases). Убедитесь, что отмечено «Добавить в PATH».
 
 **Linux/macOS:**
 

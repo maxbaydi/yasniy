@@ -37,7 +37,7 @@
 ### Windows (рекомендуется)
 
 1. Скачайте установщик из релизов: `Yasn-Setup-x.x.x.exe`
-   - https://github.com/yasniy/yasniy/releases
+   - https://github.com/maxbaydi/yasniy/releases
 2. Запустите установку.
 3. Откройте новый терминал и проверьте:
 
@@ -170,6 +170,7 @@ yasn version
 - Troubleshooting: `docs/troubleshooting.md`
 - Нативный toolchain: `docs/native-toolchain.md`
 - Публикация docs на GitHub Pages: `docs/github-pages.md`
+- Yasniy Wiki (дополнительно к `docs/`): `https://github.com/maxbaydi/yasniy/wiki`
 
 ---
 

@@ -27,9 +27,13 @@ jobs:
           New-Item -ItemType Directory -Force -Path installer/staging/bin | Out-Null
           New-Item -ItemType Directory -Force -Path installer/staging/packages | Out-Null
           Copy-Item native/yasn-native/bin/Release/net10.0/win-x64/publish/yasn.exe installer/staging/bin/
+          if (!(Test-Path packages/ui-sdk)) { throw "Source directory packages/ui-sdk not found" }
+          if (!(Test-Path packages/ui-kit)) { throw "Source directory packages/ui-kit not found" }
           robocopy packages/ui-sdk installer/staging/packages/ui-sdk /E /XD node_modules /NFL /NDL /NJH /NJS /nc /ns /np
+          echo "robocopy exit code: $LASTEXITCODE"
           if ($LASTEXITCODE -ge 8) { exit 1 }
           robocopy packages/ui-kit installer/staging/packages/ui-kit /E /XD node_modules /NFL /NDL /NJH /NJS /nc /ns /np
+          echo "robocopy exit code: $LASTEXITCODE"
           if ($LASTEXITCODE -ge 8) { exit 1 }
 
       - name: Compile Inno Setup

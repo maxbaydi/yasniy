@@ -14,7 +14,7 @@ title: Установка
 ## Windows (рекомендуется)
 
 1. Скачайте `Yasn-Setup-x.x.x.exe`:
-   - https://github.com/yasniy/yasniy/releases
+   - https://github.com/maxbaydi/yasniy/releases
 2. Запустите установщик.
 3. Откройте новый терминал.
 4. Проверьте установку:
