@@ -21,19 +21,41 @@ jobs:
 
       - name: Sync docs to GitHub Wiki
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WIKI_TOKEN: ${{ secrets.WIKI_TOKEN || github.token }}
+          GITHUB_ACTOR: ${{ github.actor }}
           REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
 
-          if [ -z "${GITHUB_TOKEN:-}" ]; then
-            echo "GITHUB_TOKEN is empty"
+          if [ -z "${WIKI_TOKEN:-}" ]; then
+            echo "WIKI_TOKEN/GITHUB_TOKEN is empty"
             exit 1
           fi
 
-          WIKI_REMOTE="https://x-access-token:${GITHUB_TOKEN}@github.com/${REPOSITORY}.wiki.git"
+          REPO_API="https://api.github.com/repos/${REPOSITORY}"
+          REPO_JSON="$(curl -fsSL \
+            -H "Authorization: Bearer ${WIKI_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "${REPO_API}")"
+
+          if ! echo "${REPO_JSON}" | grep -q '"has_wiki":[[:space:]]*true'; then
+            echo "::error::Wiki is disabled for ${REPOSITORY}. Enable it in Settings -> Features -> Wikis."
+            exit 1
+          fi
+
+          # Use actor:token auth which works for classic PAT and GITHUB_TOKEN.
+          WIKI_REMOTE="https://${GITHUB_ACTOR}:${WIKI_TOKEN}@github.com/${REPOSITORY}.wiki.git"
           WORK_DIR="$(mktemp -d)"
           WIKI_DIR="${WORK_DIR}/wiki"
+
+          if git ls-remote "${WIKI_REMOTE}" >/dev/null 2>&1; then
+            echo "Wiki remote is reachable"
+          else
+            echo "::error::Cannot access ${REPOSITORY}.wiki.git."
+            echo "::error::Check WIKI_TOKEN permissions and create the first Wiki page in GitHub UI."
+            echo "::error::Open https://github.com/${REPOSITORY}/wiki and click 'Create the first page'."
+            exit 1
+          fi
 
           if git clone "${WIKI_REMOTE}" "${WIKI_DIR}" 2>/dev/null; then
             echo "Wiki repository cloned"
@@ -102,7 +124,11 @@ jobs:
           if [ -n "$(git status --porcelain)" ]; then
             git add .
             git commit -m "Sync wiki from docs"
-            git push origin HEAD:master
+            if ! git push origin HEAD:master; then
+              echo "::error::Failed to push to ${REPOSITORY}.wiki.git."
+              echo "::error::Set repository secret WIKI_TOKEN (classic PAT with repo scope) and ensure Wiki is enabled."
+              exit 1
+            fi
             echo "Wiki updated"
           else
             echo "No wiki changes"

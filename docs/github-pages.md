@@ -79,3 +79,9 @@ https://github.com/maxbaydi/yasniy/wiki
 ```
 
 Если Wiki пока пустая, запустите его вручную через `Actions -> Sync Docs to Wiki -> Run workflow`.
+
+Если в логах есть `repository ... .wiki.git not found`, обычно это права токена:
+- добавьте `Settings -> Secrets and variables -> Actions -> New repository secret`:
+  - `WIKI_TOKEN` = Personal Access Token (classic) с scope `repo`;
+- проверьте, что Wiki включена: `Settings -> General -> Features -> Wikis`.
+- один раз инициализируйте Wiki в UI: `https://github.com/maxbaydi/yasniy/wiki` -> `Create the first page`.
