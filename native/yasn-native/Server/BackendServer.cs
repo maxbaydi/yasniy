@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Text;
 using System.Text.Json;
 using YasnNative.Bytecode;
@@ -64,19 +64,22 @@ public static class BackendServer
             {
                 SendOk(ctx.Response, new Dictionary<string, object?>
                 {
+                    ["schemaVersion"] = 2,
                     ["functions"] = FunctionSchemaBuilder.ToJsonList(backend.ListSchema()),
                 });
                 return;
             }
 
-            if (path == "/call" && request.HttpMethod == "POST")
+            if (path == "/call")
             {
+                if (request.HttpMethod != "POST")
+                {
+                    SendError(ctx.Response, 405, "method_not_allowed", "Route /call supports only POST");
+                    return;
+                }
+
                 var body = ReadJsonBody(request);
                 var fnName = body.TryGetValue("function", out var fnRaw) ? fnRaw as string : null;
-                var args = body.TryGetValue("args", out var argsRaw) && argsRaw is List<object?> list
-                    ? list
-                    : [];
-                var resetState = body.TryGetValue("reset_state", out var resetRaw) && resetRaw is bool b && b;
 
                 if (string.IsNullOrWhiteSpace(fnName))
                 {
@@ -84,7 +87,27 @@ public static class BackendServer
                     return;
                 }
 
-                var result = backend.Call(fnName, args, resetState);
+                if (!TryReadBoolean(body, "reset_state", defaultValue: false, out var resetState, out var boolError))
+                {
+                    SendError(ctx.Response, boolError!.StatusCode, boolError.Code, boolError.Message);
+                    return;
+                }
+
+                if (!TryReadBoolean(body, "await_result", defaultValue: true, out var awaitResult, out boolError))
+                {
+                    SendError(ctx.Response, boolError!.StatusCode, boolError.Code, boolError.Message);
+                    return;
+                }
+
+                body.TryGetValue("args", out var argsRaw);
+                body.TryGetValue("named_args", out var namedArgsRaw);
+                if (!backend.TryPrepareCall(fnName, argsRaw, namedArgsRaw, out var args, out var callError))
+                {
+                    SendError(ctx.Response, callError!.StatusCode, callError.Code, callError.Message);
+                    return;
+                }
+
+                var result = backend.Call(fnName, args, resetState, awaitResult);
                 SendOk(ctx.Response, new Dictionary<string, object?>
                 {
                     ["result"] = BytecodeCodec.NormalizeForJson(result),
@@ -185,5 +208,29 @@ public static class BackendServer
         response.Headers["Access-Control-Allow-Origin"] = "*";
         response.Headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Request-Id";
         response.Headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS";
+    }
+
+    private static bool TryReadBoolean(
+        Dictionary<string, object?> body,
+        string key,
+        bool defaultValue,
+        out bool value,
+        out BackendCallValidationError? error)
+    {
+        error = null;
+        value = defaultValue;
+        if (!body.TryGetValue(key, out var raw) || raw is null)
+        {
+            return true;
+        }
+
+        if (raw is bool b)
+        {
+            value = b;
+            return true;
+        }
+
+        error = new BackendCallValidationError(400, "invalid_request", $"Field '{key}' must be a boolean");
+        return false;
     }
 }

@@ -200,7 +200,7 @@ yasn version
 - `1` — ошибка выполнения/компиляции/тестов
 - `2` — ошибка аргументов CLI
 
-## UI Contract Addendum (2026-02-11)
+## UI Contract Addendum (2026-02-15)
 
 Backend/UI contract endpoints:
 
@@ -208,24 +208,46 @@ Backend/UI contract endpoints:
 - `GET /schema`
 - `POST /call`
 
-`/schema` returns function signatures and types for UI auto-form generation.
+`run-app` serves the same contract under `/api/*`.
 
-### `pack` with UI
+### Schema v2
 
-```powershell
-yasn pack app.яс -o app.yapp --ui-dist ui/dist
+`GET /schema` now returns:
+
+- `data.schemaVersion = 2`
+- typed metadata for each function (`typeNode`, `returnTypeNode`, `ui`, `isPublicApi`)
+- legacy string fields (`type`, `returnType`, `signature`) for backward compatibility
+
+### Public API exposure rules
+
+Only public UI API functions are exposed:
+
+- `main` is hidden
+- internal `__мод_*` functions are hidden
+- if exports are present, only `экспорт` functions are exposed
+
+### `/call` payload
+
+`POST /call` supports either positional or named arguments:
+
+```json
+{
+  "function": "sum",
+  "args": [1, 2],
+  "reset_state": false,
+  "await_result": true
+}
 ```
 
-### `run-app` web runtime mode
-
-If `.yapp` includes UI assets, `run-app` serves static files and API under `/api/*`.
-
-```powershell
-yasn run-app app.yapp --host 127.0.0.1 --port 8080
+```json
+{
+  "function": "sum",
+  "named_args": { "a": 1, "b": 2 },
+  "reset_state": false,
+  "await_result": true
+}
 ```
 
-### `install-app` with UI
+`await_result = false` returns async task handle instead of waiting for function result.
 
-```powershell
-yasn install-app app.яс --name my_app --ui-dist ui/dist
-```
+Validation happens before VM call. Typical errors: `invalid_request`, `invalid_arguments`, `unknown_function`, `method_not_allowed`.

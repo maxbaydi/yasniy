@@ -1,4 +1,4 @@
-﻿привет
+привет
 
 приветри
 
@@ -135,3 +135,23 @@ UI should call only:
 - `POST /api/call`
 
 See `docs/ui-contract.md` for response format and SDK usage.
+
+## 14. UI schema v2 tips
+
+Current UI contract provides machine-readable schema (`schemaVersion = 2`):
+
+- `typeNode` and `returnTypeNode` for typed form generation
+- `ui` hints for field controls
+- `isPublicApi` exposure flag
+
+`POST /api/call` accepts either `args` or `named_args`:
+
+```json
+{
+  "function": "sum",
+  "named_args": { "a": 2, "b": 3 },
+  "await_result": true
+}
+```
+
+Set `await_result: false` to receive async task handle immediately.

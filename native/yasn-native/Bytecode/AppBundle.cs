@@ -244,8 +244,16 @@ public static class AppBundleCodec
             }
 
             var name = RequireString(fnElement, "name", path);
-            var returnType = RequireString(fnElement, "returnType", path);
-            var isAsync = fnElement.TryGetProperty("isAsync", out var asyncElement) && asyncElement.ValueKind == JsonValueKind.True;
+            var returnType = TryReadString(fnElement, "returnType", path) ?? "Любой";
+            var returnTypeNode = ReadOptionalSchemaTypeNode(fnElement, "returnTypeNode", path);
+            if (string.IsNullOrWhiteSpace(returnType) && returnTypeNode is not null)
+            {
+                returnType = FunctionSchemaBuilder.FormatSchemaType(returnTypeNode);
+            }
+
+            var isAsync = ReadOptionalBool(fnElement, "isAsync", defaultValue: false, path);
+            var isPublicApi = ReadOptionalBool(fnElement, "isPublicApi", defaultValue: true, path);
+            var functionUi = ReadOptionalObject(fnElement, "ui", path);
 
             var parameters = new List<FunctionParamSchema>();
             if (fnElement.TryGetProperty("params", out var paramsElement))
@@ -264,14 +272,161 @@ public static class AppBundleCodec
 
                     parameters.Add(new FunctionParamSchema(
                         RequireString(paramElement, "name", path),
-                        RequireString(paramElement, "type", path)));
+                        TryReadString(paramElement, "type", path) ?? "Любой",
+                        ReadOptionalSchemaTypeNode(paramElement, "typeNode", path),
+                        ReadOptionalObject(paramElement, "ui", path)));
                 }
             }
 
-            result.Add(new FunctionSchema(name, parameters, returnType, isAsync));
+            result.Add(new FunctionSchema(
+                name,
+                parameters,
+                returnType,
+                isAsync,
+                isPublicApi,
+                returnTypeNode,
+                functionUi));
         }
 
         return result;
+    }
+
+    private static string? TryReadString(JsonElement root, string propertyName, string? path)
+    {
+        if (!root.TryGetProperty(propertyName, out var element) || element.ValueKind == JsonValueKind.Null)
+        {
+            return null;
+        }
+
+        if (element.ValueKind != JsonValueKind.String)
+        {
+            throw new YasnException($"Поле метаданных '{propertyName}' должно быть строкой", path: path);
+        }
+
+        return element.GetString();
+    }
+
+    private static bool ReadOptionalBool(JsonElement root, string propertyName, bool defaultValue, string? path)
+    {
+        if (!root.TryGetProperty(propertyName, out var element) || element.ValueKind == JsonValueKind.Null)
+        {
+            return defaultValue;
+        }
+
+        if (element.ValueKind == JsonValueKind.True)
+        {
+            return true;
+        }
+
+        if (element.ValueKind == JsonValueKind.False)
+        {
+            return false;
+        }
+
+        throw new YasnException($"Поле метаданных '{propertyName}' должно быть логическим значением", path: path);
+    }
+
+    private static SchemaTypeNode? ReadOptionalSchemaTypeNode(JsonElement root, string propertyName, string? path)
+    {
+        if (!root.TryGetProperty(propertyName, out var element) || element.ValueKind == JsonValueKind.Null)
+        {
+            return null;
+        }
+
+        return ReadSchemaTypeNode(element, path);
+    }
+
+    private static SchemaTypeNode ReadSchemaTypeNode(JsonElement element, string? path)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            throw new YasnException("Поле schema.typeNode должно быть объектом", path: path);
+        }
+
+        var kind = RequireString(element, "kind", path);
+        return kind switch
+        {
+            "primitive" => SchemaTypeNode.Primitive(TryReadString(element, "name", path) ?? "Любой"),
+            "list" => SchemaTypeNode.List(ReadSchemaTypeNode(RequireProperty(element, "element", path), path)),
+            "dict" => SchemaTypeNode.Dict(
+                ReadSchemaTypeNode(RequireProperty(element, "key", path), path),
+                ReadSchemaTypeNode(RequireProperty(element, "value", path), path)),
+            "union" => SchemaTypeNode.Union(ReadSchemaTypeVariants(element, path)),
+            _ => throw new YasnException($"Неизвестный kind typeNode: {kind}", path: path),
+        };
+    }
+
+    private static List<SchemaTypeNode> ReadSchemaTypeVariants(JsonElement root, string? path)
+    {
+        if (!root.TryGetProperty("variants", out var variantsElement) || variantsElement.ValueKind != JsonValueKind.Array)
+        {
+            throw new YasnException("Поле schema.typeNode.variants должно быть массивом", path: path);
+        }
+
+        var variants = variantsElement
+            .EnumerateArray()
+            .Select(item => ReadSchemaTypeNode(item, path))
+            .ToList();
+
+        if (variants.Count == 0)
+        {
+            throw new YasnException("Поле schema.typeNode.variants не должно быть пустым", path: path);
+        }
+
+        return variants;
+    }
+
+    private static Dictionary<string, object?>? ReadOptionalObject(JsonElement root, string propertyName, string? path)
+    {
+        if (!root.TryGetProperty(propertyName, out var element) || element.ValueKind == JsonValueKind.Null)
+        {
+            return null;
+        }
+
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            throw new YasnException($"Поле метаданных '{propertyName}' должно быть объектом", path: path);
+        }
+
+        var decoded = BytecodeCodec.DecodeJsonValue(element);
+        if (decoded is not Dictionary<object, object?> dict)
+        {
+            return null;
+        }
+
+        return ConvertToStringDictionary(dict);
+    }
+
+    private static Dictionary<string, object?> ConvertToStringDictionary(Dictionary<object, object?> source)
+    {
+        var result = new Dictionary<string, object?>(StringComparer.Ordinal);
+        foreach (var pair in source)
+        {
+            var key = pair.Key?.ToString() ?? string.Empty;
+            result[key] = NormalizeDecodedValue(pair.Value);
+        }
+
+        return result;
+    }
+
+    private static object? NormalizeDecodedValue(object? value)
+    {
+        return value switch
+        {
+            Dictionary<object, object?> dict => ConvertToStringDictionary(dict),
+            List<object?> list => list.Select(NormalizeDecodedValue).ToList(),
+            _ => value,
+        };
+    }
+
+    private static JsonElement RequireProperty(JsonElement root, string propertyName, string? path)
+    {
+        if (!root.TryGetProperty(propertyName, out var element))
+        {
+            throw new YasnException($"Поле метаданных '{propertyName}' отсутствует", path: path);
+        }
+
+        return element;
     }
 
     private static string RequireString(JsonElement root, string propertyName, string? path)

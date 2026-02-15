@@ -1,349 +1,158 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useYasnCall, useYasnSchema } from "@yasn/ui-sdk/react";
+import { Button, Skeleton } from "./primitives/index.js";
+import {
+  FunctionForm,
+  FunctionSelect,
+  CallResult,
+  TaskHandleStatus,
+  ErrorPanel,
+} from "./yasn-blocks/index.js";
+
+export {
+  Button,
+  Input,
+  Select,
+  Checkbox,
+  Textarea,
+  Card,
+  Badge,
+  Modal,
+  Toast,
+  ToastContainer,
+  Tabs,
+  TabsPanel,
+  Spinner,
+  Skeleton,
+  EmptyState,
+  Tooltip,
+  Dropdown,
+  DropdownItem,
+  DropdownDivider,
+} from "./primitives/index.js";
+export { FunctionForm, FunctionSelect, SchemaExplorer, CallResult, TaskHandleStatus, ErrorPanel } from "./yasn-blocks/index.js";
+export { AppShell, Sidebar, Toolbar, Table, Kanban } from "./layout/index.js";
 
 export function YasnPlayground({
   client,
   title = "YASN Playground",
   submitLabel = "Run",
   resetState = false,
+  awaitResult = true,
+  showOnlyPublic = true,
 }) {
   const { schema, loading: schemaLoading, error: schemaError, refresh } =
     useYasnSchema(client);
-  const { call, loading: callLoading, result, error: callError } =
+  const { call, loading: callLoading, result, error: callError, reset } =
     useYasnCall(client);
+
+  const functions = useMemo(
+    () =>
+      showOnlyPublic
+        ? schema.filter((item) => item.isPublicApi !== false)
+        : schema,
+    [schema, showOnlyPublic]
+  );
 
   const [selectedFunction, setSelectedFunction] = useState("");
   const currentSchema = useMemo(
-    () => schema.find((item) => item.name === selectedFunction) ?? null,
-    [schema, selectedFunction]
+    () => functions.find((item) => item.name === selectedFunction) ?? null,
+    [functions, selectedFunction]
   );
 
   useEffect(() => {
-    if (!selectedFunction && schema.length > 0) {
-      setSelectedFunction(schema[0].name);
-    }
-  }, [schema, selectedFunction]);
-
-  const handleSubmit = async (args) => {
-    if (!selectedFunction) {
+    if (functions.length === 0) {
+      if (selectedFunction) setSelectedFunction("");
       return;
     }
+    if (!selectedFunction || !functions.some((item) => item.name === selectedFunction)) {
+      setSelectedFunction(functions[0].name);
+    }
+  }, [functions, selectedFunction]);
 
-    await call(selectedFunction, args, { resetState });
+  const handleSubmit = async (namedArgs) => {
+    if (!selectedFunction) return;
+    await call(selectedFunction, namedArgs, { resetState, awaitResult });
   };
+
+  function SchemaSkeleton() {
+    return React.createElement(
+      "div",
+      { style: { display: "grid", gap: "var(--yasn-space-3)" } },
+      React.createElement(Skeleton, { height: "2em", width: "60%" }),
+      React.createElement(Skeleton, { height: "8em", width: "100%" }),
+      React.createElement(Skeleton, { height: "2em", width: "40%" })
+    );
+  }
+
+  const isTaskHandle = useMemo(() => {
+    if (result === null || result === undefined || callError) return false;
+    return typeof result === "object" && typeof result.task_id === "number";
+  }, [result, callError]);
 
   return React.createElement(
     "section",
-    { style: styles.panel },
-    React.createElement("h2", { style: styles.title }, title),
+    { className: "yasn-playground" },
+    React.createElement("h2", {
+      style: {
+        margin: 0,
+        marginBottom: "var(--yasn-space-3)",
+        fontSize: "var(--yasn-fs-3xl)",
+        color: "var(--yasn-text)",
+      },
+    }, title),
     React.createElement(
       "div",
-      { style: styles.toolbar },
-      React.createElement(YasnFunctionSelect, {
-        functions: schema,
+      { className: "yasn-playground__toolbar" },
+      React.createElement(FunctionSelect, {
+        functions,
         value: selectedFunction,
         onChange: setSelectedFunction,
       }),
-      React.createElement(
-        "button",
-        {
-          type: "button",
-          onClick: () => refresh().catch(() => undefined),
-          style: styles.secondaryButton,
-        },
-        "Refresh schema"
-      )
+      React.createElement(Button, {
+        variant: "secondary",
+        onClick: () => refresh().catch(() => undefined),
+      }, "Refresh schema"),
+      React.createElement(Button, { variant: "secondary", onClick: reset }, "Clear result")
     ),
     schemaLoading
-      ? React.createElement("p", { style: styles.status }, "Loading schema...")
+      ? React.createElement(SchemaSkeleton)
       : null,
     schemaError
-      ? React.createElement("p", { style: styles.error }, schemaError.message)
+      ? React.createElement(ErrorPanel, { error: schemaError })
       : null,
     currentSchema
-      ? React.createElement(YasnAutoForm, {
+      ? React.createElement(FunctionForm, {
           schema: currentSchema,
           submitLabel,
           loading: callLoading,
           onSubmit: handleSubmit,
         })
       : null,
-    React.createElement(YasnResultCard, {
-      result,
-      error: callError,
-    })
-  );
-}
-
-export function YasnFunctionSelect({ functions, value, onChange }) {
-  return React.createElement(
-    "label",
-    { style: styles.label },
-    React.createElement("span", { style: styles.labelText }, "Function"),
-    React.createElement(
-      "select",
-      {
-        value,
-        onChange: (event) => onChange(event.target.value),
-        style: styles.select,
-      },
-      functions.map((fn) =>
-        React.createElement(
-          "option",
-          { key: fn.name, value: fn.name },
-          fn.signature ?? fn.name
+    !schemaLoading && functions.length === 0
+      ? React.createElement(
+          "p",
+          { className: "yasn-status" },
+          "No public API functions in schema. Export functions to expose them in UI."
         )
-      )
-    )
+      : null,
+    isTaskHandle
+      ? React.createElement(TaskHandleStatus, { handle: result })
+      : React.createElement(CallResult, {
+          result,
+          error: callError,
+        })
   );
 }
 
-export function YasnAutoForm({
-  schema,
-  submitLabel = "Run",
-  loading = false,
-  onSubmit,
-}) {
-  const initialValues = useMemo(
-    () =>
-      Object.fromEntries(
-        (schema?.params ?? []).map((param) => [param.name, ""])
-      ),
-    [schema]
-  );
-  const [values, setValues] = useState(initialValues);
+export function YasnFunctionSelect(props) {
+  return React.createElement(FunctionSelect, props);
+}
 
-  useEffect(() => {
-    setValues(initialValues);
-  }, [initialValues]);
-
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    const args = (schema?.params ?? []).map((param) =>
-      parseByType(values[param.name], param.type)
-    );
-    onSubmit(args);
-  };
-
-  return React.createElement(
-    "form",
-    { style: styles.form, onSubmit: handleSubmit },
-    React.createElement("p", { style: styles.signature }, schema.signature),
-    ...(schema?.params ?? []).map((param) =>
-      React.createElement(
-        "label",
-        { key: param.name, style: styles.label },
-        React.createElement(
-          "span",
-          { style: styles.labelText },
-          `${param.name} (${param.type})`
-        ),
-        React.createElement("input", {
-          value: values[param.name] ?? "",
-          onChange: (event) =>
-            setValues((prev) => ({
-              ...prev,
-              [param.name]: event.target.value,
-            })),
-          placeholder: placeholderByType(param.type),
-          style: styles.input,
-        })
-      )
-    ),
-    React.createElement(
-      "button",
-      {
-        type: "submit",
-        disabled: loading,
-        style: styles.primaryButton,
-      },
-      loading ? "Running..." : submitLabel
-    )
-  );
+export function YasnAutoForm(props) {
+  return React.createElement(FunctionForm, props);
 }
 
 export function YasnResultCard({ result, error }) {
-  return React.createElement(
-    "article",
-    { style: styles.resultCard },
-    React.createElement("h3", { style: styles.resultTitle }, "Result"),
-    error
-      ? React.createElement("pre", { style: styles.error }, error.message)
-      : null,
-    !error && result !== null && result !== undefined
-      ? React.createElement("pre", { style: styles.pre }, safeStringify(result))
-      : null,
-    !error && (result === null || result === undefined)
-      ? React.createElement("p", { style: styles.status }, "No result yet.")
-      : null
-  );
+  return React.createElement(CallResult, { result, error });
 }
-
-function parseByType(raw, type) {
-  const text = String(raw ?? "").trim();
-  const normalizedType = String(type ?? "").toLowerCase();
-
-  if (normalizedType.includes("цел") || normalizedType.includes("дроб")) {
-    if (text.length === 0) {
-      return 0;
-    }
-
-    const number = Number(text.replace(",", "."));
-    return Number.isFinite(number) ? number : 0;
-  }
-
-  if (normalizedType.includes("лог")) {
-    return text === "true" || text === "истина" || text === "1";
-  }
-
-  if (normalizedType.includes("список") || normalizedType.includes("словарь")) {
-    if (text.length === 0) {
-      return normalizedType.includes("список") ? [] : {};
-    }
-
-    try {
-      return JSON.parse(text);
-    } catch {
-      return text;
-    }
-  }
-
-  return text;
-}
-
-function placeholderByType(type) {
-  const normalizedType = String(type ?? "").toLowerCase();
-  if (normalizedType.includes("список")) {
-    return "[1, 2, 3]";
-  }
-
-  if (normalizedType.includes("словарь")) {
-    return "{\"key\": \"value\"}";
-  }
-
-  if (normalizedType.includes("лог")) {
-    return "true | false";
-  }
-
-  if (normalizedType.includes("цел") || normalizedType.includes("дроб")) {
-    return "42";
-  }
-
-  return "value";
-}
-
-function safeStringify(value) {
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return String(value);
-  }
-}
-
-const styles = {
-  panel: {
-    maxWidth: "860px",
-    padding: "24px",
-    margin: "24px auto",
-    borderRadius: "16px",
-    background:
-      "linear-gradient(145deg, rgba(246,248,250,1) 0%, rgba(236,242,248,1) 100%)",
-    border: "1px solid rgba(12, 26, 39, 0.12)",
-    boxShadow: "0 12px 36px rgba(0, 24, 48, 0.12)",
-    fontFamily:
-      "\"IBM Plex Sans\", \"Segoe UI\", \"Helvetica Neue\", Arial, sans-serif",
-  },
-  title: {
-    margin: 0,
-    marginBottom: "14px",
-    fontSize: "28px",
-    color: "#0B253A",
-  },
-  toolbar: {
-    display: "flex",
-    gap: "12px",
-    flexWrap: "wrap",
-    alignItems: "end",
-    marginBottom: "16px",
-  },
-  form: {
-    display: "grid",
-    gap: "12px",
-    padding: "16px",
-    borderRadius: "12px",
-    background: "rgba(255,255,255,0.88)",
-    border: "1px solid rgba(12, 26, 39, 0.08)",
-  },
-  label: {
-    display: "grid",
-    gap: "6px",
-    minWidth: "260px",
-  },
-  labelText: {
-    fontSize: "13px",
-    fontWeight: 600,
-    color: "#264257",
-  },
-  input: {
-    border: "1px solid #AFC0D1",
-    borderRadius: "10px",
-    padding: "10px 12px",
-    fontSize: "14px",
-  },
-  select: {
-    border: "1px solid #AFC0D1",
-    borderRadius: "10px",
-    padding: "10px 12px",
-    fontSize: "14px",
-    minWidth: "340px",
-  },
-  primaryButton: {
-    border: "none",
-    borderRadius: "10px",
-    padding: "10px 14px",
-    background: "#0B6E4F",
-    color: "#fff",
-    fontWeight: 700,
-    cursor: "pointer",
-  },
-  secondaryButton: {
-    border: "1px solid #AFC0D1",
-    borderRadius: "10px",
-    padding: "10px 14px",
-    background: "#fff",
-    color: "#0B253A",
-    cursor: "pointer",
-  },
-  signature: {
-    margin: 0,
-    color: "#35546A",
-    fontWeight: 600,
-  },
-  resultCard: {
-    marginTop: "16px",
-    padding: "16px",
-    borderRadius: "12px",
-    background: "rgba(255,255,255,0.9)",
-    border: "1px solid rgba(12, 26, 39, 0.08)",
-  },
-  resultTitle: {
-    marginTop: 0,
-    marginBottom: "10px",
-    color: "#0B253A",
-  },
-  pre: {
-    margin: 0,
-    whiteSpace: "pre-wrap",
-    wordBreak: "break-word",
-    fontSize: "13px",
-  },
-  status: {
-    margin: 0,
-    color: "#406176",
-  },
-  error: {
-    margin: 0,
-    color: "#8F1D1D",
-    whiteSpace: "pre-wrap",
-  },
-};

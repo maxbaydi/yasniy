@@ -5,11 +5,19 @@
   "type": "module",
   "main": "./src/index.js",
   "exports": {
-    ".": "./src/index.js"
+    ".": "./src/index.js",
+    "./theme.css": "./src/theme.css",
+    "./primitives": "./src/primitives/index.js",
+    "./yasn-blocks": "./src/yasn-blocks/index.js",
+    "./layout": "./src/layout/index.js"
   },
   "peerDependencies": {
     "react": ">=18.0.0",
     "@yasn/ui-sdk": ">=0.1.0"
+  },
+  "devDependencies": {
+    "react": "^18.3.1",
+    "@yasn/ui-sdk": "file:../ui-sdk"
   },
   "license": "MIT"
 }

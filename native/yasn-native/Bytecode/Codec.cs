@@ -1,7 +1,8 @@
-﻿using System.Buffers.Binary;
+using System.Buffers.Binary;
 using System.Text;
 using System.Text.Json;
 using YasnNative.Core;
+using YasnNative.Runtime;
 
 namespace YasnNative.Bytecode;
 
@@ -114,6 +115,13 @@ public static class BytecodeCodec
             float f => f,
             decimal d => d,
             string s => s,
+            TaskHandle task => new Dictionary<string, object?>
+            {
+                ["task_id"] = task.TaskId,
+                ["done"] = task.Future.IsCompleted,
+                ["canceled"] = task.Future.IsCanceled,
+                ["faulted"] = task.Future.IsFaulted,
+            },
             List<object?> list => list.Select(NormalizeForJson).ToList(),
             Dictionary<object, object?> dict => dict.ToDictionary(
                 pair => ValueToString(pair.Key),
@@ -208,5 +216,6 @@ public static class BytecodeCodec
         }
     }
 }
+
 
 

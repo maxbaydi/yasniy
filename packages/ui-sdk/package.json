@@ -4,12 +4,15 @@
   "description": "Client SDK for YASN backend UI contract (/functions, /schema, /call)",
   "type": "module",
   "main": "./src/index.js",
+  "scripts": {
+    "test": "node --test ./test/*.mjs"
+  },
   "exports": {
     ".": "./src/index.js",
     "./react": "./src/react.js"
   },
   "peerDependencies": {
-    "react": ">=18.0.0"
+    "react": "^19.2.4"
   },
   "license": "MIT"
 }
