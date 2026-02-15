@@ -1,5 +1,5 @@
 #define MyAppName "YASN"
-#define MyAppVersion "0.2.1"
+#define MyAppVersion "0.2.2"
 #define MyAppPublisher "Yasniy"
 #define MyAppURL "https://github.com/maxbaydi/yasniy"
 #define MyAppExeName "yasn.exe"
