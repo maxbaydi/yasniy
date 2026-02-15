@@ -221,7 +221,14 @@ if (-not $DryRun) {
     }
 }
 
-$updatedText = $versionRegex.Replace($versionText, "`$1$targetVersion`$3", 1)
+$updatedText = $versionRegex.Replace(
+    $versionText,
+    {
+        param($match)
+        "$($match.Groups[1].Value)$targetVersion$($match.Groups[3].Value)"
+    },
+    1
+)
 
 if ($DryRun) {
     Write-Host "Dry-run enabled: no file changes, no commit, no tag, no push."
