@@ -35,11 +35,15 @@ jobs:
           if (!(Test-Path packages/ui-sdk)) { throw "Source directory packages/ui-sdk not found" }
           if (!(Test-Path packages/ui-kit)) { throw "Source directory packages/ui-kit not found" }
           robocopy packages/ui-sdk installer/staging/packages/ui-sdk /E /XD node_modules /NFL /NDL /NJH /NJS /nc /ns /np
-          echo "robocopy exit code: $LASTEXITCODE"
-          if ($LASTEXITCODE -ge 8) { exit 1 }
+          $robocopyExit = $LASTEXITCODE
+          echo "robocopy exit code: $robocopyExit"
+          if ($robocopyExit -ge 8) { exit $robocopyExit }
+          $global:LASTEXITCODE = 0
           robocopy packages/ui-kit installer/staging/packages/ui-kit /E /XD node_modules /NFL /NDL /NJH /NJS /nc /ns /np
-          echo "robocopy exit code: $LASTEXITCODE"
-          if ($LASTEXITCODE -ge 8) { exit 1 }
+          $robocopyExit = $LASTEXITCODE
+          echo "robocopy exit code: $robocopyExit"
+          if ($robocopyExit -ge 8) { exit $robocopyExit }
+          $global:LASTEXITCODE = 0
 
       - name: Compile Inno Setup
         run: |

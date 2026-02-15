@@ -71,3 +71,11 @@ https://github.com/maxbaydi/yasniy/wiki
 - исходник держать в `docs/*.md`;
 - в Wiki переносить только пользовательские overview-страницы и навигацию;
 - при обновлении CLI/API-контрактов сначала обновлять `docs/`, затем соответствующие страницы в Wiki.
+
+Для автоматической синхронизации добавлен workflow:
+
+```text
+.github/workflows/sync-wiki.yml
+```
+
+Если Wiki пока пустая, запустите его вручную через `Actions -> Sync Docs to Wiki -> Run workflow`.

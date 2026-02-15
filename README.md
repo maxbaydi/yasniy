@@ -171,6 +171,7 @@ yasn version
 - Нативный toolchain: `docs/native-toolchain.md`
 - Публикация docs на GitHub Pages: `docs/github-pages.md`
 - Yasniy Wiki (дополнительно к `docs/`): `https://github.com/maxbaydi/yasniy/wiki`
+- Автосинхронизация docs -> Wiki: `.github/workflows/sync-wiki.yml`
 
 ---
 

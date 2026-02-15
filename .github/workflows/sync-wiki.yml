@@ -1,0 +1,109 @@
+name: Sync Docs to Wiki
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/**"
+      - ".github/workflows/sync-wiki.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Sync docs to GitHub Wiki
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${GITHUB_TOKEN:-}" ]; then
+            echo "GITHUB_TOKEN is empty"
+            exit 1
+          fi
+
+          WIKI_REMOTE="https://x-access-token:${GITHUB_TOKEN}@github.com/${REPOSITORY}.wiki.git"
+          WORK_DIR="$(mktemp -d)"
+          WIKI_DIR="${WORK_DIR}/wiki"
+
+          if git clone "${WIKI_REMOTE}" "${WIKI_DIR}" 2>/dev/null; then
+            echo "Wiki repository cloned"
+          else
+            echo "Wiki repository is empty or unavailable, initializing local wiki repo"
+            mkdir -p "${WIKI_DIR}"
+            cd "${WIKI_DIR}"
+            git init
+            git remote add origin "${WIKI_REMOTE}"
+            git checkout -B master
+          fi
+
+          cd "${WIKI_DIR}"
+
+          strip_front_matter() {
+            local src="$1"
+            local dst="$2"
+            awk '
+              NR == 1 && $0 == "---" { in_front_matter = 1; next }
+              in_front_matter && $0 == "---" { in_front_matter = 0; next }
+              !in_front_matter { print }
+            ' "${src}" > "${dst}"
+          }
+
+          copy_doc() {
+            local src="$1"
+            local dst="$2"
+            if [ ! -f "${GITHUB_WORKSPACE}/${src}" ]; then
+              echo "Skip missing file: ${src}"
+              return
+            fi
+            strip_front_matter "${GITHUB_WORKSPACE}/${src}" "${dst}"
+          }
+
+          copy_doc "docs/index.md" "Home.md"
+          copy_doc "docs/installation.md" "Installation.md"
+          copy_doc "docs/quickstart.md" "Quickstart.md"
+          copy_doc "docs/language-tutorial.md" "Language-Tutorial.md"
+          copy_doc "docs/language-reference.md" "Language-Reference.md"
+          copy_doc "docs/cli-reference.md" "CLI-Reference.md"
+          copy_doc "docs/packaging-and-run.md" "Packaging-and-Run.md"
+          copy_doc "docs/ui-contract.md" "UI-Contract.md"
+          copy_doc "docs/architecture.md" "Architecture.md"
+          copy_doc "docs/native-toolchain.md" "Native-Toolchain.md"
+          copy_doc "docs/troubleshooting.md" "Troubleshooting.md"
+          copy_doc "docs/github-pages.md" "Publishing-Docs.md"
+
+          cat > "_Sidebar.md" <<'EOF'
+          - [Home](Home)
+          - [Installation](Installation)
+          - [Quickstart](Quickstart)
+          - [Language Tutorial](Language-Tutorial)
+          - [Language Reference](Language-Reference)
+          - [CLI Reference](CLI-Reference)
+          - [Packaging and Run](Packaging-and-Run)
+          - [UI Contract](UI-Contract)
+          - [Architecture](Architecture)
+          - [Native Toolchain](Native-Toolchain)
+          - [Troubleshooting](Troubleshooting)
+          - [Publishing Docs](Publishing-Docs)
+          EOF
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if [ -n "$(git status --porcelain)" ]; then
+            git add .
+            git commit -m "Sync wiki from docs"
+            git push origin HEAD:master
+            echo "Wiki updated"
+          else
+            echo "No wiki changes"
+          fi
