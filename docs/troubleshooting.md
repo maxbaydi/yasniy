@@ -1,4 +1,4 @@
-﻿# Troubleshooting и диагностика
+# Troubleshooting и диагностика
 
 ## 1. `yasn` не распознан как команда
 
@@ -109,3 +109,15 @@ yasn paths --short
 ```
 
 Добавьте его в PATH.
+
+## 11. Ошибка TOML на `version = 0.1.1`
+
+Поддерживаемые форматы:
+
+```toml
+version = 1
+version = 1.2
+version = "0.1.1"
+```
+
+`version = 0.1.1` без кавычек невалидно для TOML и ломает разбор `yasn.toml`.

@@ -1,0 +1,15 @@
+{
+  "name": "@yasn/ui-sdk",
+  "version": "0.1.0",
+  "description": "Client SDK for YASN backend UI contract (/functions, /schema, /call)",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./react": "./src/react.js"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0"
+  },
+  "license": "MIT"
+}

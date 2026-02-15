@@ -1,4 +1,4 @@
-﻿# CLI справочник `yasn`
+# CLI справочник `yasn`
 
 Показать встроенную справку:
 
@@ -121,6 +121,8 @@ yasn pack app.яс -o app.yapp
 yasn pack app.яс --name my_app
 ```
 
+Без `--name` имя берётся из `yasn.toml` (`[app].name`, затем `[app].displayName`, затем имя файла).
+
 ## `run-app`
 
 Запуск `.yapp`:
@@ -137,10 +139,13 @@ yasn run-app app.yapp
 yasn install-app app.яс --name my_app
 ```
 
+Без `--name` команда берётся из `yasn.toml` (`[app].name`, затем `[app].displayName`, затем имя файла).
+
 Windows создаёт:
 
-- `%APPDATA%\yasn\apps\my_app.yapp`
-- `%APPDATA%\yasn\bin\my_app.cmd`
+- `%LOCALAPPDATA%\yasn\apps\my_app.yapp`
+- `%LOCALAPPDATA%\yasn\bin\my_app.cmd`
+- `%LOCALAPPDATA%\yasn\bin\my_app` (Git Bash/MSYS2)
 
 Linux/macOS создаёт:
 
@@ -194,3 +199,33 @@ yasn version
 - `0` — успех
 - `1` — ошибка выполнения/компиляции/тестов
 - `2` — ошибка аргументов CLI
+
+## UI Contract Addendum (2026-02-11)
+
+Backend/UI contract endpoints:
+
+- `GET /functions`
+- `GET /schema`
+- `POST /call`
+
+`/schema` returns function signatures and types for UI auto-form generation.
+
+### `pack` with UI
+
+```powershell
+yasn pack app.яс -o app.yapp --ui-dist ui/dist
+```
+
+### `run-app` web runtime mode
+
+If `.yapp` includes UI assets, `run-app` serves static files and API under `/api/*`.
+
+```powershell
+yasn run-app app.yapp --host 127.0.0.1 --port 8080
+```
+
+### `install-app` with UI
+
+```powershell
+yasn install-app app.яс --name my_app --ui-dist ui/dist
+```

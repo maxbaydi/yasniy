@@ -1,6 +1,7 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Net.Http;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using YasnNative.Bytecode;
 using YasnNative.Core;
@@ -25,6 +26,8 @@ public sealed class TaskHandle
 
 public sealed class VirtualMachine : IDisposable
 {
+    private const int MaxCallDepth = 1000;
+
     private delegate object? BuiltinFn(List<object?> args, object?[] globalsStore);
 
     private readonly ProgramBC _program;
@@ -39,6 +42,7 @@ public sealed class VirtualMachine : IDisposable
     private object?[] _globals = [];
     private bool _initialized;
     private int _taskCounter;
+    private int _callDepth;
 
     public VirtualMachine(ProgramBC program, string? path = null)
     {
@@ -54,6 +58,7 @@ public sealed class VirtualMachine : IDisposable
             ["пауза"] = BuiltinSleep,
             ["строка"] = BuiltinToString,
             ["число"] = BuiltinToInt,
+            ["дробное"] = BuiltinToFloat,
             ["добавить"] = BuiltinAppend,
             ["удалить"] = BuiltinRemove,
             ["ключи"] = BuiltinKeys,
@@ -139,6 +144,27 @@ public sealed class VirtualMachine : IDisposable
                 path: _path);
         }
 
+        _callDepth++;
+        if (_callDepth > MaxCallDepth)
+        {
+            _callDepth--;
+            throw new YasnException(
+                $"Превышена максимальная глубина вызовов ({MaxCallDepth}). Возможна бесконечная рекурсия",
+                path: _path);
+        }
+
+        try
+        {
+            return ExecuteFunctionBody(fn, args, globalsStore);
+        }
+        finally
+        {
+            _callDepth--;
+        }
+    }
+
+    private object? ExecuteFunctionBody(FunctionBC fn, List<object?> args, object?[] globalsStore)
+    {
         var locals = new object?[fn.LocalCount];
         for (var i = 0; i < args.Count; i++)
         {
@@ -354,7 +380,7 @@ public sealed class VirtualMachine : IDisposable
     {
         if (stack.Count == 0)
         {
-            return null;
+            throw new YasnException("Внутренняя ошибка VM: стек пуст (stack underflow)");
         }
 
         var value = stack[^1];
@@ -471,11 +497,23 @@ public sealed class VirtualMachine : IDisposable
     {
         if (IsIntegral(a) && IsIntegral(b))
         {
+            var divisor = ToInt64(b);
+            if (divisor == 0)
+            {
+                throw new YasnException("Деление на ноль", path: _path);
+            }
+
             return (long)Math.Truncate(ToDouble(a) / ToDouble(b));
         }
         if (IsNumeric(a) && IsNumeric(b))
         {
-            return ToDouble(a) / ToDouble(b);
+            var divisor = ToDouble(b);
+            if (divisor == 0.0)
+            {
+                throw new YasnException("Деление на ноль", path: _path);
+            }
+
+            return ToDouble(a) / divisor;
         }
         throw new YasnException("Оператор '/' поддерживает только числа", path: _path);
     }
@@ -484,11 +522,23 @@ public sealed class VirtualMachine : IDisposable
     {
         if (IsIntegral(a) && IsIntegral(b))
         {
-            return ToInt64(a) % ToInt64(b);
+            var divisor = ToInt64(b);
+            if (divisor == 0)
+            {
+                throw new YasnException("Деление по модулю на ноль", path: _path);
+            }
+
+            return ToInt64(a) % divisor;
         }
         if (IsNumeric(a) && IsNumeric(b))
         {
-            return ToDouble(a) % ToDouble(b);
+            var divisor = ToDouble(b);
+            if (divisor == 0.0)
+            {
+                throw new YasnException("Деление по модулю на ноль", path: _path);
+            }
+
+            return ToDouble(a) % divisor;
         }
         throw new YasnException("Оператор '%' поддерживает только числа", path: _path);
     }
@@ -532,7 +582,7 @@ public sealed class VirtualMachine : IDisposable
 
         if (IsNumeric(a) && IsNumeric(b))
         {
-            return Math.Abs(ToDouble(a) - ToDouble(b)) < double.Epsilon;
+            return ToDouble(a) == ToDouble(b);
         }
 
         if (a is List<object?> leftList && b is List<object?> rightList)
@@ -587,8 +637,8 @@ public sealed class VirtualMachine : IDisposable
             bool b => b,
             long i => i != 0,
             int i => i != 0,
-            double d => Math.Abs(d) > double.Epsilon,
-            float f => Math.Abs(f) > float.Epsilon,
+            double d => d != 0.0,
+            float f => f != 0.0f,
             string s => s.Length > 0,
             List<object?> list => list.Count > 0,
             Dictionary<object, object?> dict => dict.Count > 0,
@@ -731,6 +781,43 @@ public sealed class VirtualMachine : IDisposable
             return (long)ToDouble(value);
         }
         throw new YasnException($"Невозможно преобразовать '{FormatValue(value)}' в число", path: _path);
+    }
+
+    private object? BuiltinToFloat(List<object?> args, object?[] _)
+    {
+        if (args.Count != 1)
+        {
+            throw new YasnException("дробное(x) принимает ровно 1 аргумент", path: _path);
+        }
+
+        var value = args[0];
+        if (value is bool b)
+        {
+            return b ? 1.0 : 0.0;
+        }
+
+        if (value is string s)
+        {
+            var cleaned = s.Trim();
+            if (cleaned.Length == 0)
+            {
+                return 0.0;
+            }
+
+            if (double.TryParse(cleaned, NumberStyles.Float | NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var parsed))
+            {
+                return parsed;
+            }
+
+            throw new YasnException($"Невозможно преобразовать '{s}' в дробное число", path: _path);
+        }
+
+        if (IsNumeric(value))
+        {
+            return ToDouble(value);
+        }
+
+        throw new YasnException($"Невозможно преобразовать '{FormatValue(value)}' в дробное число", path: _path);
     }
 
     private object? BuiltinAppend(List<object?> args, object?[] _)
@@ -899,7 +986,8 @@ public sealed class VirtualMachine : IDisposable
         }
 
         var normalized = RuntimeToJsonNode(args[0]);
-        return JsonSerializer.Serialize(normalized);
+        var options = new JsonSerializerOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+        return JsonSerializer.Serialize(normalized, options);
     }
 
     private object? BuiltinHttpGet(List<object?> args, object?[] _)
@@ -1385,12 +1473,50 @@ internal sealed class RuntimeValueComparer : IEqualityComparer<object>
 
     public new bool Equals(object? x, object? y)
     {
-        return ReferenceEquals(x, y) || x?.Equals(y) == true;
+        if (ReferenceEquals(x, y))
+        {
+            return true;
+        }
+
+        if (IsNumeric(x) && IsNumeric(y))
+        {
+            return ToDouble(x) == ToDouble(y);
+        }
+
+        return x?.Equals(y) == true;
     }
 
     public int GetHashCode(object obj)
     {
+        if (IsNumeric(obj))
+        {
+            return ToDouble(obj).GetHashCode();
+        }
+
         return obj.GetHashCode();
+    }
+
+    private static bool IsNumeric(object? value)
+    {
+        return value is sbyte or byte or short or ushort or int or uint or long or ulong or float or double or decimal;
+    }
+
+    private static double ToDouble(object? value)
+    {
+        return value switch
+        {
+            sbyte v => v,
+            byte v => v,
+            short v => v,
+            ushort v => v,
+            int v => v,
+            uint v => v,
+            long v => v,
+            float v => v,
+            double v => v,
+            decimal v => (double)v,
+            _ => 0.0,
+        };
     }
 }
 

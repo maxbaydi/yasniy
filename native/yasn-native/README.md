@@ -26,9 +26,9 @@ check <file.яс>
 test [path|file] [--pattern *_test.яс] [--fail-fast] [--verbose]
 build <file.яс> [-o out.ybc]
 exec <file.ybc>
-pack <file.яс> [-o out.yapp] [--name app]
-run-app <file.yapp>
-install-app <file.яс> [--name app]
+pack <file.яс> [-o out.yapp] [--name app] [--ui-dist ui/dist]
+run-app <file.yapp> [--host 127.0.0.1] [--port 8080]
+install-app <file.яс> [--name app] [--ui-dist ui/dist]
 paths [--short]
 deps [install|list] [--clean] [--all]
 ```
@@ -68,3 +68,5 @@ dotnet publish native/yasn-native/yasn-native.csproj \
 - Builtin stdlib: collections, files, JSON, HTTP, asserts.
 - Native test runner (`yasn test`).
 - Native HTTP backend server (`yasn serve`).
+- UI schema endpoint (`GET /schema`) for auto-generated forms.
+- App web runtime with embedded UI assets (`--ui-dist` + `run-app`).

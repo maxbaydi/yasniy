@@ -1,4 +1,4 @@
-﻿using YasnNative.Bytecode;
+using YasnNative.Bytecode;
 
 namespace YasnNative.Core;
 
@@ -458,11 +458,10 @@ public sealed class Compiler
                 }
 
                 case MemberExpr member:
-                    throw YasnException.At(
-                        "Оператор '.' пока не поддерживается в нативном компиляторе",
-                        member.Line,
-                        member.Col,
-                        _path);
+                    CompileExpr(member.Target);
+                    Emit("CONST", member.Member);
+                    Emit("INDEX_GET");
+                    return;
 
                 case ListLiteralExpr list:
                     foreach (var item in list.Elements)

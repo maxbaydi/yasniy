@@ -1,6 +1,7 @@
 ﻿using System.Text.RegularExpressions;
 using YasnNative.App;
 using YasnNative.Bytecode;
+using YasnNative.Config;
 using YasnNative.Core;
 using YasnNative.Deps;
 using YasnNative.Runner;
@@ -51,23 +52,23 @@ internal static class Program
         }
         catch (FileNotFoundException ex)
         {
-            Console.WriteLine($"ошибка: файл не найден: {ex.FileName}");
+            Console.WriteLine($"error: file not found: {ex.FileName}");
             return 1;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"ошибка выполнения: {ex.Message}");
+            Console.WriteLine($"runtime error: {ex.Message}");
             return 1;
         }
     }
 
     private static int CommandRun(string[] args)
     {
-        var target = RequireArg(args, 1, "run требует путь к .яс файлу или режим dev/start");
+        var target = RequireArg(args, 1, "run requires path to source file or dev/start mode");
         var backend = ParseOption(args, "--backend");
         var host = ParseOption(args, "--host");
         var portRaw = ParseOption(args, "--port");
-        var port = ParseNullableInt(portRaw, "Некорректный порт");
+        var port = ParseNullableInt(portRaw, "Invalid port");
 
         if (ModeNames.Contains(target))
         {
@@ -87,18 +88,18 @@ internal static class Program
         var backend = ParseOption(args, "--backend");
         var host = ParseOption(args, "--host");
         var portRaw = ParseOption(args, "--port");
-        var port = ParseNullableInt(portRaw, "Некорректный порт");
+        var port = ParseNullableInt(portRaw, "Invalid port");
         return ProjectRunner.RunMode(mode, backend, host, port);
     }
 
     private static int CommandServe(string[] args)
     {
-        var sourcePath = RequireArg(args, 1, "serve требует путь к backend .яс файлу");
+        var sourcePath = RequireArg(args, 1, "serve requires path to backend source file");
         var host = ParseOption(args, "--host") ?? "127.0.0.1";
         var portRaw = ParseOption(args, "--port") ?? "8000";
         if (!int.TryParse(portRaw, out var port))
         {
-            throw new YasnException($"Некорректный порт: {portRaw}");
+            throw new YasnException($"Invalid port: {portRaw}");
         }
 
         BackendServer.Serve(sourcePath, host, port);
@@ -107,11 +108,11 @@ internal static class Program
 
     private static int CommandCheck(string[] args)
     {
-        var sourcePath = RequireArg(args, 1, "check требует путь к .яс файлу");
+        var sourcePath = RequireArg(args, 1, "check requires path to source file");
         var fullPath = Path.GetFullPath(sourcePath);
         var source = File.ReadAllText(fullPath);
         _ = Pipeline.CompileSource(source, fullPath);
-        Console.WriteLine("Проверка пройдена: ошибок не найдено.");
+        Console.WriteLine("Check passed: no errors found.");
         return 0;
     }
 
@@ -131,7 +132,7 @@ internal static class Program
 
     private static int CommandBuild(string[] args)
     {
-        var sourcePath = RequireArg(args, 1, "build требует путь к .яс файлу");
+        var sourcePath = RequireArg(args, 1, "build requires path to source file");
         var outputPath = ParseOption(args, "-o") ?? ParseOption(args, "--output");
 
         var fullSourcePath = Path.GetFullPath(sourcePath);
@@ -142,13 +143,13 @@ internal static class Program
             : Path.GetFullPath(outputPath);
 
         File.WriteAllBytes(output, BytecodeCodec.EncodeProgram(program));
-        Console.WriteLine($"Байткод сохранён: {output}");
+        Console.WriteLine($"Bytecode saved: {output}");
         return 0;
     }
 
     private static int CommandExec(string[] args)
     {
-        var bytecodePath = RequireArg(args, 1, "exec требует путь к .ybc файлу");
+        var bytecodePath = RequireArg(args, 1, "exec requires path to .ybc file");
         var fullPath = Path.GetFullPath(bytecodePath);
         var program = BytecodeCodec.DecodeProgram(File.ReadAllBytes(fullPath), fullPath);
         var vm = new VirtualMachine(program, fullPath);
@@ -158,47 +159,94 @@ internal static class Program
 
     private static int CommandPack(string[] args)
     {
-        var sourcePath = RequireArg(args, 1, "pack требует путь к .яс файлу");
+        var sourcePath = RequireArg(args, 1, "pack requires path to .яс source file");
         var outputPath = ParseOption(args, "-o") ?? ParseOption(args, "--output");
-        var appName = ParseOption(args, "--name") ?? Path.GetFileNameWithoutExtension(sourcePath);
-
+        var uiDistRaw = ParseOption(args, "--ui-dist");
+        var metadata = AppProjectMetadata.LoadForSource(sourcePath);
+        var fallbackName = Path.GetFileNameWithoutExtension(sourcePath);
+        var explicitName = ParseOption(args, "--name");
+        var appName = explicitName ?? metadata.ResolveTechnicalName(fallbackName);
+        var displayName = explicitName ?? metadata.ResolveDisplayName(appName);
         var fullSourcePath = Path.GetFullPath(sourcePath);
-        var source = File.ReadAllText(fullSourcePath);
-        var program = Pipeline.CompileSource(source, fullSourcePath);
-        var bytecode = BytecodeCodec.EncodeProgram(program);
-        var bundle = AppBundleCodec.CreateBundle(appName, bytecode);
-
+        var bundle = BuildBundleFromSource(
+            sourcePath,
+            new AppBundleMetadata(
+                Name: appName,
+                DisplayName: displayName,
+                Description: metadata.Description,
+                AppVersion: metadata.Version,
+                Publisher: metadata.Publisher),
+            uiDistRaw,
+            metadata.ConfigPath);
         var output = outputPath is null
             ? Path.ChangeExtension(fullSourcePath, ".yapp")
             : Path.GetFullPath(outputPath);
         File.WriteAllBytes(output, bundle);
-        Console.WriteLine($"Приложение упаковано: {output}");
+        Console.WriteLine($"App packed: {output}");
+        if (!string.IsNullOrWhiteSpace(uiDistRaw))
+        {
+            Console.WriteLine("[yasn] UI assets embedded.");
+        }
         return 0;
     }
 
     private static int CommandRunApp(string[] args)
     {
-        var appPath = RequireArg(args, 1, "run-app требует путь к .yapp файлу");
+        var appPath = RequireArg(args, 1, "run-app requires path to .yapp file");
+        var host = ParseOption(args, "--host") ?? "127.0.0.1";
+        var portRaw = ParseOption(args, "--port") ?? "8080";
+        if (!int.TryParse(portRaw, out var port))
+        {
+            throw new YasnException($"Invalid port: {portRaw}");
+        }
         var fullPath = Path.GetFullPath(appPath);
         var (bundle, program) = AppBundleCodec.DecodeBundleToProgram(File.ReadAllBytes(fullPath), fullPath);
+        if (bundle.UiDistZip is { Length: > 0 })
+        {
+            var backend = BackendKernel.FromProgram(program, fullPath, bundle.Schema);
+            var assets = UiAssetManifest.FromZip(bundle.UiDistZip);
+            AppRuntimeServer.Serve(bundle, backend, assets, host, port);
+            return 0;
+        }
         var vm = new VirtualMachine(program, fullPath);
         vm.Run();
-        Console.WriteLine($"[yasn] Приложение '{bundle.Name}' завершено.");
+        var appLabel = string.IsNullOrWhiteSpace(bundle.DisplayName) ? bundle.Name : bundle.DisplayName;
+        Console.WriteLine($"[yasn] App '{appLabel}' finished.");
         return 0;
     }
 
     private static int CommandInstallApp(string[] args)
     {
-        var sourcePath = RequireArg(args, 1, "install-app требует путь к .яс файлу");
-        var nameRaw = ParseOption(args, "--name") ?? Path.GetFileNameWithoutExtension(sourcePath);
+        var sourcePath = RequireArg(args, 1, "install-app requires path to .яс source file");
+        var uiDistRaw = ParseOption(args, "--ui-dist");
+        var metadata = AppProjectMetadata.LoadForSource(sourcePath);
+        var fallbackName = Path.GetFileNameWithoutExtension(sourcePath);
+        var explicitName = ParseOption(args, "--name");
+        var nameRaw = explicitName ?? metadata.ResolveTechnicalName(fallbackName);
+        var displayName = explicitName ?? metadata.ResolveDisplayName(nameRaw);
         var cmdName = SanitizeCommandName(nameRaw);
-
-        var bundle = AppInstaller.CompileSourceToBundle(sourcePath, cmdName);
+        var bundle = BuildBundleFromSource(
+            sourcePath,
+            new AppBundleMetadata(
+                Name: nameRaw,
+                DisplayName: displayName,
+                Description: metadata.Description,
+                AppVersion: metadata.Version,
+                Publisher: metadata.Publisher),
+            uiDistRaw,
+            metadata.ConfigPath);
         var (appPath, launcherPath) = AppInstaller.InstallAppBundle(cmdName, bundle);
-
-        Console.WriteLine($"Приложение установлено: {appPath}");
-        Console.WriteLine($"Лаунчер создан: {launcherPath}");
-        Console.WriteLine($"Добавьте в PATH каталог: {AppInstaller.UserBinDir()}");
+        Console.WriteLine($"App installed: {appPath}");
+        Console.WriteLine($"Launcher created: {launcherPath}");
+        if (AppInstaller.IsUserBinInPath())
+        {
+            Console.WriteLine($"Command available: {cmdName}");
+        }
+        else
+        {
+            Console.WriteLine($"Add to PATH: {AppInstaller.UserBinDir()}");
+            Console.WriteLine("Open a new terminal after updating PATH.");
+        }
         return 0;
     }
 
@@ -226,7 +274,7 @@ internal static class Program
 
         if (action != "install" && action != "list")
         {
-            throw new YasnException("deps action должен быть install или list");
+            throw new YasnException("deps action must be install or list");
         }
 
         var clean = HasFlag(args, "--clean");
@@ -293,7 +341,7 @@ internal static class Program
             {
                 if (i + 1 >= args.Length)
                 {
-                    throw new YasnException($"Отсутствует значение для опции {option}");
+                    throw new YasnException($"Missing value for option {option}");
                 }
 
                 return args[i + 1];
@@ -328,14 +376,14 @@ internal static class Program
         var name = value.Trim();
         if (name.Length == 0)
         {
-            throw new YasnException("Имя команды не может быть пустым");
+            throw new YasnException("Command name cannot be empty");
         }
 
         name = Regex.Replace(name, "\\s+", "_");
         name = Regex.Replace(name, "[^\\w\\-]", "_");
         if (name.Length == 0)
         {
-            throw new YasnException("После нормализации имя команды оказалось пустым");
+            throw new YasnException("Command name is empty after normalization");
         }
 
         return name;
@@ -355,27 +403,67 @@ internal static class Program
 
     private static int UnknownCommand(string command)
     {
-        Console.WriteLine($"Неизвестная команда: {command}");
+        Console.WriteLine($"Unknown command: {command}");
         PrintHelp();
         return 2;
+    }
+
+    private static byte[] BuildBundleFromSource(
+        string sourcePath,
+        AppBundleMetadata metadata,
+        string? uiDistRaw,
+        string? configPath)
+    {
+        var fullSourcePath = Path.GetFullPath(sourcePath);
+        var source = File.ReadAllText(fullSourcePath);
+        var loadedProgram = Pipeline.LoadProgram(source, fullSourcePath);
+        var program = Pipeline.CompileProgram(loadedProgram, fullSourcePath);
+        var bytecode = BytecodeCodec.EncodeProgram(program);
+        var schema = FunctionSchemaBuilder.FromProgramNode(loadedProgram);
+        byte[]? uiDistZip = null;
+        if (!string.IsNullOrWhiteSpace(uiDistRaw))
+        {
+            var uiDistPath = ResolveUiDistPath(uiDistRaw, sourcePath, configPath);
+            uiDistZip = UiAssetManifest.PackDirectory(uiDistPath);
+        }
+        return AppBundleCodec.CreateBundle(
+            metadata with
+            {
+                Schema = schema,
+            },
+            bytecode,
+            uiDistZip);
+    }
+
+    private static string ResolveUiDistPath(string uiDistRaw, string sourcePath, string? configPath)
+    {
+        if (Path.IsPathRooted(uiDistRaw))
+        {
+            return Path.GetFullPath(uiDistRaw);
+        }
+        var projectRoot = !string.IsNullOrWhiteSpace(configPath)
+            ? Path.GetDirectoryName(Path.GetFullPath(configPath)) ?? Directory.GetCurrentDirectory()
+            : Path.GetDirectoryName(Path.GetFullPath(sourcePath)) ?? Directory.GetCurrentDirectory();
+        return Path.GetFullPath(Path.Combine(projectRoot, uiDistRaw));
     }
 
     private static void PrintHelp()
     {
         Console.WriteLine("yasn (native compiler + VM)");
-        Console.WriteLine("Команды:");
-        Console.WriteLine("  run <file.яс|dev|start> [--backend ...] [--host ...] [--port ...]");
+        Console.WriteLine("Commands:");
+        Console.WriteLine("  run <file|dev|start> [--backend ...] [--host ...] [--port ...]");
         Console.WriteLine("  dev [--backend ...] [--host ...] [--port ...]");
         Console.WriteLine("  start [--backend ...] [--host ...] [--port ...]");
-        Console.WriteLine("  serve <backend.яс> [--host 127.0.0.1] [--port 8000]");
-        Console.WriteLine("  check <file.яс>");
-        Console.WriteLine("  test [path|file] [--pattern *_test.яс] [--fail-fast] [--verbose]");
-        Console.WriteLine("  build <file.яс> [-o out.ybc]");
+        Console.WriteLine("  serve <backend-file> [--host 127.0.0.1] [--port 8000]");
+        Console.WriteLine("  check <file>");
+        Console.WriteLine("  test [path|file] [--pattern *_test.*] [--fail-fast] [--verbose]");
+        Console.WriteLine("  build <file> [-o out.ybc]");
         Console.WriteLine("  exec <file.ybc>");
-        Console.WriteLine("  pack <file.яс> [-o out.yapp] [--name app]");
-        Console.WriteLine("  run-app <file.yapp>");
-        Console.WriteLine("  install-app <file.яс> [--name app]");
+        Console.WriteLine("  pack <file.яс> [-o out.yapp] [--name app] [--ui-dist ui/dist]");
+        Console.WriteLine("  run-app <file.yapp> [--host 127.0.0.1] [--port 8080]");
+        Console.WriteLine("  install-app <file.яс> [--name app] [--ui-dist ui/dist]");
         Console.WriteLine("  paths [--short]");
         Console.WriteLine("  deps [install|list] [--clean] [--all]");
     }
 }
+

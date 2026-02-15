@@ -1,0 +1,101 @@
+{
+  "name": "vscode-yasniy",
+  "displayName": "Ясный",
+  "description": "Подсветка синтаксиса языка Ясный",
+  "version": "0.6.0",
+  "publisher": "yasniy",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yasniy/yasniy"
+  },
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "configurationDefaults": {
+    "editor.tokenColorCustomizations": {
+      "textMateRules": [
+        {
+          "scope": [
+            "keyword.control.function.yasniy",
+            "keyword.control.async.yasniy",
+            "keyword.control.export.yasniy",
+            "keyword.control.declaration.yasniy"
+          ],
+          "settings": { "fontStyle": "italic" }
+        },
+        {
+          "scope": [
+            "keyword.control.conditional.yasniy",
+            "keyword.control.loop.yasniy",
+            "keyword.control.flow.yasniy",
+            "keyword.control.import.yasniy"
+          ],
+          "settings": { "fontStyle": "italic" }
+        },
+        {
+          "scope": "keyword.operator.logical.yasniy",
+          "settings": { "fontStyle": "italic" }
+        },
+        {
+          "scope": "constant.language.boolean.true.yasniy",
+          "settings": { "fontStyle": "italic", "foreground": "#569CD6" }
+        },
+        {
+          "scope": "constant.language.boolean.false.yasniy",
+          "settings": { "fontStyle": "italic", "foreground": "#569CD6" }
+        },
+        {
+          "scope": "constant.language.null.yasniy",
+          "settings": { "fontStyle": "italic", "foreground": "#569CD6" }
+        },
+        {
+          "scope": "entity.name.function.yasniy",
+          "settings": { "fontStyle": "bold", "foreground": "#DCDCAA" }
+        },
+        {
+          "scope": "support.function.builtin.yasniy",
+          "settings": { "foreground": "#DCDCAA" }
+        },
+        {
+          "scope": "entity.name.function.call.yasniy",
+          "settings": { "foreground": "#DCDCAA" }
+        },
+        {
+          "scope": "support.type.yasniy",
+          "settings": { "foreground": "#4EC9B0" }
+        },
+        {
+          "scope": "keyword.operator.arrow.yasniy",
+          "settings": { "foreground": "#CCCCCC" }
+        },
+        {
+          "scope": [
+            "variable.other.yasniy",
+            "variable.parameter.yasniy"
+          ],
+          "settings": { "foreground": "#9CDCFE" }
+        }
+      ]
+    }
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "yasniy",
+        "aliases": ["Ясный", "yasniy"],
+        "extensions": [".яс"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "yasniy",
+        "scopeName": "source.yasniy",
+        "path": "./syntaxes/yasniy.tmLanguage.json"
+      }
+    ]
+  }
+}

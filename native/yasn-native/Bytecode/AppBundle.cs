@@ -1,32 +1,68 @@
-﻿using System.Buffers.Binary;
+using System.Buffers.Binary;
 using System.Text.Json;
 using YasnNative.Core;
 
 namespace YasnNative.Bytecode;
 
-public sealed record AppBundle(string Name, int Version, byte[] Bytecode);
+public sealed record AppBundle(
+    string Name,
+    int Version,
+    byte[] Bytecode,
+    string? DisplayName = null,
+    string? Description = null,
+    string? AppVersion = null,
+    string? Publisher = null,
+    List<FunctionSchema>? Schema = null,
+    byte[]? UiDistZip = null);
+
+public sealed record AppBundleMetadata(
+    string Name,
+    string? DisplayName = null,
+    string? Description = null,
+    string? AppVersion = null,
+    string? Publisher = null,
+    List<FunctionSchema>? Schema = null);
 
 public static class AppBundleCodec
 {
     private static readonly byte[] AppMagic = "YASNYAP1"u8.ToArray();
 
-    public const int AppVersion = 1;
+    public const int AppVersion = 2;
 
     public static byte[] CreateBundle(string name, byte[] bytecode)
     {
+        return CreateBundle(new AppBundleMetadata(name), bytecode, uiDistZip: null);
+    }
+
+    public static byte[] CreateBundle(AppBundleMetadata metadata, byte[] bytecode)
+    {
+        return CreateBundle(metadata, bytecode, uiDistZip: null);
+    }
+
+    public static byte[] CreateBundle(AppBundleMetadata metadata, byte[] bytecode, byte[]? uiDistZip)
+    {
+        var metaObject = new Dictionary<string, object?>
+        {
+            ["name"] = metadata.Name,
+            ["version"] = AppVersion,
+        };
+
+        AddIfNotEmpty(metaObject, "displayName", metadata.DisplayName);
+        AddIfNotEmpty(metaObject, "description", metadata.Description);
+        AddIfNotEmpty(metaObject, "appVersion", metadata.AppVersion);
+        AddIfNotEmpty(metaObject, "publisher", metadata.Publisher);
+        AddSchemaIfPresent(metaObject, metadata.Schema);
+
         var meta = JsonSerializer.SerializeToUtf8Bytes(
-            new Dictionary<string, object?>
-            {
-                ["name"] = name,
-                ["version"] = AppVersion,
-            },
+            metaObject,
             new JsonSerializerOptions
             {
                 Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
                 WriteIndented = false,
             });
 
-        var output = new byte[AppMagic.Length + 4 + meta.Length + 4 + bytecode.Length];
+        var uiBytes = uiDistZip ?? [];
+        var output = new byte[AppMagic.Length + 4 + meta.Length + 4 + bytecode.Length + 4 + uiBytes.Length];
         var offset = 0;
         Buffer.BlockCopy(AppMagic, 0, output, offset, AppMagic.Length);
         offset += AppMagic.Length;
@@ -39,6 +75,14 @@ public static class AppBundleCodec
         BinaryPrimitives.WriteUInt32LittleEndian(output.AsSpan(offset, 4), (uint)bytecode.Length);
         offset += 4;
         Buffer.BlockCopy(bytecode, 0, output, offset, bytecode.Length);
+        offset += bytecode.Length;
+
+        BinaryPrimitives.WriteUInt32LittleEndian(output.AsSpan(offset, 4), (uint)uiBytes.Length);
+        offset += 4;
+        if (uiBytes.Length > 0)
+        {
+            Buffer.BlockCopy(uiBytes, 0, output, offset, uiBytes.Length);
+        }
 
         return output;
     }
@@ -68,6 +112,11 @@ public static class AppBundleCodec
 
         string name;
         int version;
+        string? displayName;
+        string? description;
+        string? appVersion;
+        string? publisher;
+        List<FunctionSchema>? schema;
         try
         {
             using var doc = JsonDocument.Parse(metaRaw);
@@ -78,28 +127,60 @@ public static class AppBundleCodec
             version = root.TryGetProperty("version", out var versionElement)
                 ? versionElement.GetInt32()
                 : 0;
+            displayName = ReadOptionalString(root, "displayName", path);
+            description = ReadOptionalString(root, "description", path);
+            appVersion = ReadOptionalString(root, "appVersion", path);
+            publisher = ReadOptionalString(root, "publisher", path);
+            schema = ReadSchema(root, path);
         }
         catch (Exception ex)
         {
             throw new YasnException($"Не удалось разобрать метаданные приложения: {ex.Message}", path: path);
         }
 
-        if (version != AppVersion)
+        if (version is not (1 or AppVersion))
         {
             throw new YasnException(
-                $"Неподдерживаемая версия формата приложения: {version}, ожидается {AppVersion}",
+                $"Неподдерживаемая версия формата приложения: {version}, ожидается 1 или {AppVersion}",
                 path: path);
         }
 
         var bytecodeLength = BinaryPrimitives.ReadUInt32LittleEndian(blob.AsSpan(offset, 4));
         offset += 4;
-        if (offset + bytecodeLength != blob.Length)
+        if (offset + bytecodeLength > blob.Length)
         {
             throw new YasnException("Некорректная длина байткода в приложении", path: path);
         }
 
         var bytecode = blob.AsSpan(offset, checked((int)bytecodeLength)).ToArray();
-        return new AppBundle(name, version, bytecode);
+        offset += (int)bytecodeLength;
+
+        byte[]? uiDistZip = null;
+        if (version == AppVersion)
+        {
+            if (offset + 4 > blob.Length)
+            {
+                throw new YasnException("Повреждён блок UI-ресурсов в приложении", path: path);
+            }
+
+            var uiLength = BinaryPrimitives.ReadUInt32LittleEndian(blob.AsSpan(offset, 4));
+            offset += 4;
+            if (offset + uiLength != blob.Length)
+            {
+                throw new YasnException("Некорректная длина UI-архива в приложении", path: path);
+            }
+
+            if (uiLength > 0)
+            {
+                uiDistZip = blob.AsSpan(offset, checked((int)uiLength)).ToArray();
+            }
+        }
+        else if (offset != blob.Length)
+        {
+            throw new YasnException("Некорректная длина байткода в приложении", path: path);
+        }
+
+        return new AppBundle(name, version, bytecode, displayName, description, appVersion, publisher, schema, uiDistZip);
     }
 
     public static (AppBundle Bundle, ProgramBC Program) DecodeBundleToProgram(byte[] blob, string? path = null)
@@ -107,5 +188,99 @@ public static class AppBundleCodec
         var bundle = ReadBundle(blob, path);
         var program = BytecodeCodec.DecodeProgram(bundle.Bytecode, path);
         return (bundle, program);
+    }
+
+    private static void AddIfNotEmpty(Dictionary<string, object?> metaObject, string key, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            metaObject[key] = value;
+        }
+    }
+
+    private static void AddSchemaIfPresent(Dictionary<string, object?> metaObject, List<FunctionSchema>? schema)
+    {
+        if (schema is null || schema.Count == 0)
+        {
+            return;
+        }
+
+        metaObject["schema"] = FunctionSchemaBuilder.ToJsonList(schema);
+    }
+
+    private static string? ReadOptionalString(JsonElement root, string propertyName, string? path)
+    {
+        if (!root.TryGetProperty(propertyName, out var element) || element.ValueKind == JsonValueKind.Null)
+        {
+            return null;
+        }
+
+        if (element.ValueKind == JsonValueKind.String)
+        {
+            return element.GetString();
+        }
+
+        throw new YasnException($"Поле метаданных '{propertyName}' должно быть строкой", path: path);
+    }
+
+    private static List<FunctionSchema>? ReadSchema(JsonElement root, string? path)
+    {
+        if (!root.TryGetProperty("schema", out var schemaElement) || schemaElement.ValueKind == JsonValueKind.Null)
+        {
+            return null;
+        }
+
+        if (schemaElement.ValueKind != JsonValueKind.Array)
+        {
+            throw new YasnException("Поле метаданных 'schema' должно быть массивом", path: path);
+        }
+
+        var result = new List<FunctionSchema>();
+        foreach (var fnElement in schemaElement.EnumerateArray())
+        {
+            if (fnElement.ValueKind != JsonValueKind.Object)
+            {
+                throw new YasnException("Элемент schema должен быть объектом", path: path);
+            }
+
+            var name = RequireString(fnElement, "name", path);
+            var returnType = RequireString(fnElement, "returnType", path);
+            var isAsync = fnElement.TryGetProperty("isAsync", out var asyncElement) && asyncElement.ValueKind == JsonValueKind.True;
+
+            var parameters = new List<FunctionParamSchema>();
+            if (fnElement.TryGetProperty("params", out var paramsElement))
+            {
+                if (paramsElement.ValueKind != JsonValueKind.Array)
+                {
+                    throw new YasnException("Поле schema.params должно быть массивом", path: path);
+                }
+
+                foreach (var paramElement in paramsElement.EnumerateArray())
+                {
+                    if (paramElement.ValueKind != JsonValueKind.Object)
+                    {
+                        throw new YasnException("Элемент schema.params должен быть объектом", path: path);
+                    }
+
+                    parameters.Add(new FunctionParamSchema(
+                        RequireString(paramElement, "name", path),
+                        RequireString(paramElement, "type", path)));
+                }
+            }
+
+            result.Add(new FunctionSchema(name, parameters, returnType, isAsync));
+        }
+
+        return result;
+    }
+
+    private static string RequireString(JsonElement root, string propertyName, string? path)
+    {
+        if (!root.TryGetProperty(propertyName, out var element) || element.ValueKind != JsonValueKind.String)
+        {
+            throw new YasnException($"Поле метаданных '{propertyName}' должно быть строкой", path: path);
+        }
+
+        return element.GetString() ?? string.Empty;
     }
 }

@@ -1,4 +1,4 @@
-﻿namespace YasnNative.Core;
+namespace YasnNative.Core;
 
 public sealed class Parser
 {
@@ -70,8 +70,14 @@ public sealed class Parser
             {
                 IdentifierExpr id => new AssignStmt(id.Line, id.Col, id.Name, value),
                 IndexExpr idx => new IndexAssignStmt(idx.Line, idx.Col, idx.Target, idx.Index, value),
+                MemberExpr mem => new IndexAssignStmt(
+                    mem.Line,
+                    mem.Col,
+                    mem.Target,
+                    new LiteralExpr(mem.Line, mem.Col, mem.Member, "string"),
+                    value),
                 _ => throw YasnException.At(
-                    "Левая часть присваивания должна быть переменной или индексатором",
+                    "Левая часть присваивания должна быть переменной, индексатором или полем",
                     expr.Line,
                     expr.Col,
                     _path),
@@ -231,8 +237,15 @@ public sealed class Parser
         List<Stmt>? elseBody = null;
         if (Match("иначе"))
         {
-            Expect(":", "Ожидался ':' после 'иначе'");
-            elseBody = ParseBlock();
+            if (Check("если"))
+            {
+                elseBody = [ParseIfStmt()];
+            }
+            else
+            {
+                Expect(":", "Ожидался ':' после 'иначе'");
+                elseBody = ParseBlock();
+            }
         }
 
         return new IfStmt(start.Line, start.Col, condition, thenBody, elseBody);
@@ -261,9 +274,9 @@ public sealed class Parser
     private ReturnStmt ParseReturnStmt()
     {
         var start = Expect("вернуть", "Ожидалось 'вернуть'");
-        if (Check("NEWLINE"))
+        if (Match("NEWLINE"))
         {
-            throw YasnException.At("После 'вернуть' ожидается выражение или 'пусто'", start.Line, start.Col, _path);
+            return new ReturnStmt(start.Line, start.Col, new LiteralExpr(start.Line, start.Col, null, "null"));
         }
 
         var value = ParseExpr();

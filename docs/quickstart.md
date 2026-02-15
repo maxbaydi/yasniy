@@ -1,10 +1,14 @@
-﻿# Быстрый старт
+﻿привет
+
+приветри
+
+привет# Быстрый старт
 
 Сценарий проходит путь: исходник -> проверка -> запуск -> тесты -> байткод -> приложение.
 
 ## 1. Создайте программу
 
-`hello.яс`:
+`привет.яс`:
 
 ```text
 функция main() -> Пусто:
@@ -15,18 +19,18 @@
 ## 2. Проверка
 
 ```powershell
-yasn check hello.яс
+yasn check привет.яс
 ```
 
 ## 3. Запуск
 
 ```powershell
-yasn run hello.яс
+yasn run привет.яс
 ```
 
 ## 4. Добавьте простой тест
 
-`tests/hello_test.яс`:
+`tests/привет_тест.яс`:
 
 ```text
 функция main() -> Пусто:
@@ -43,27 +47,27 @@ yasn test
 ## 5. Сборка байткода
 
 ```powershell
-yasn build hello.яс -o hello.ybc
+yasn build привет.яс -o привет.ybc
 ```
 
 ## 6. Запуск байткода
 
 ```powershell
-yasn exec hello.ybc
+yasn exec привет.ybc
 ```
 
 ## 7. Упаковка приложения
 
 ```powershell
-yasn pack hello.яс -o hello.yapp --name hello_app
-yasn run-app hello.yapp
+yasn pack привет.яс -o привет.yapp --name привет_приложение
+yasn run-app привет.yapp
 ```
 
 ## 8. Установка как команды
 
 ```powershell
-yasn install-app hello.яс --name hello
-hello
+yasn install-app привет.яс --name привет
+привет
 ```
 
 ## 9. Примеры из репозитория
@@ -106,5 +110,28 @@ yasn run dev
 ## 12. Запуск без глобальной установки
 
 ```powershell
-dotnet run --project native/yasn-native/yasn-native.csproj -- run hello.яс
+dotnet run --project native/yasn-native/yasn-native.csproj -- run привет.яс
 ```
+
+## 13. UI bundle and auto-generated forms
+
+1. Build your frontend to `ui/dist`.
+2. Pack app with embedded UI:
+
+```powershell
+yasn pack backend/main.яс -o app.yapp --ui-dist ui/dist
+```
+
+3. Run packaged app:
+
+```powershell
+yasn run-app app.yapp --port 8080
+```
+
+UI should call only:
+
+- `GET /api/functions`
+- `GET /api/schema`
+- `POST /api/call`
+
+See `docs/ui-contract.md` for response format and SDK usage.

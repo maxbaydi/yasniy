@@ -1,4 +1,4 @@
-﻿using Tomlyn;
+using Tomlyn;
 using Tomlyn.Model;
 using YasnNative.Core;
 
@@ -8,14 +8,22 @@ public static class TomlUtil
 {
     public static TomlTable ReadToml(string path)
     {
+        var text = string.Empty;
         try
         {
-            var text = File.ReadAllText(path);
+            text = File.ReadAllText(path);
             var model = Toml.ToModel(text);
             return (TomlTable)model;
         }
         catch (Exception ex)
         {
+            if (LooksLikeUnquotedSemVer(text))
+            {
+                throw new YasnException(
+                    "Поле version в yasn.toml не может быть в формате 0.1.1 без кавычек. Используйте число (version = 1) или semver-строку (version = \"0.1.1\").",
+                    path: path);
+            }
+
             throw new YasnException($"Не удалось прочитать {System.IO.Path.GetFileName(path)}: {ex.Message}", path: path);
         }
     }
@@ -130,5 +138,12 @@ public static class TomlUtil
         }
 
         throw new YasnException($"Поле {key} должно быть списком строк", path: pathForError);
+    }
+
+    private static bool LooksLikeUnquotedSemVer(string text)
+    {
+        return System.Text.RegularExpressions.Regex.IsMatch(
+            text,
+            @"(?m)^\s*version\s*=\s*\d+\.\d+\.\d+\s*(?:#.*)?$");
     }
 }

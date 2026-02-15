@@ -1,4 +1,4 @@
-﻿namespace YasnNative.Core;
+namespace YasnNative.Core;
 
 public static class TypeChecker
 {
@@ -310,7 +310,33 @@ public static class TypeChecker
             }
 
             case MemberExpr member:
-                throw YasnException.At("Оператор '.' допускается только после корректного модульного резолвинга", member.Line, member.Col, context.Path);
+            {
+                var targetType = CheckExpr(member.Target, scope, context);
+                if (IsAnyType(targetType))
+                {
+                    return AnyType;
+                }
+
+                if (TryGetDict(targetType, out var dictKeyType, out var dictValueType))
+                {
+                    if (!IsAssignable(StringType, dictKeyType))
+                    {
+                        throw YasnException.At(
+                            $"Доступ через '.' требует ключ типа Строка, словарь имеет ключ '{FormatType(dictKeyType)}'",
+                            member.Line,
+                            member.Col,
+                            context.Path);
+                    }
+
+                    return dictValueType;
+                }
+
+                throw YasnException.At(
+                    $"Оператор '.' не поддерживается для типа '{FormatType(targetType)}'",
+                    member.Line,
+                    member.Col,
+                    context.Path);
+            }
 
             case IndexExpr indexExpr:
             {
@@ -367,6 +393,13 @@ public static class TypeChecker
     {
         var left = CheckExpr(binary.Left, scope, context);
         var right = CheckExpr(binary.Right, scope, context);
+
+        if (IsAnyType(left) || IsAnyType(right))
+        {
+            return binary.Op is "==" or "!=" or "<" or "<=" or ">" or ">=" or "и" or "или"
+                ? BoolType
+                : AnyType;
+        }
 
         switch (binary.Op)
         {
@@ -564,6 +597,11 @@ public static class TypeChecker
             case "число":
                 RequireCount(1, "число(x)");
                 returnType = IntType;
+                return true;
+
+            case "дробное":
+                RequireCount(1, "дробное(x)");
+                returnType = FloatType;
                 return true;
 
             case "добавить":

@@ -1,0 +1,291 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "scopeName": "source.yasniy",
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#import-statement" },
+    { "include": "#function-definition" },
+    { "include": "#string" },
+    { "include": "#number" },
+    { "include": "#constant" },
+    { "include": "#keyword-declaration" },
+    { "include": "#keyword-flow" },
+    { "include": "#keyword-control" },
+    { "include": "#keyword-operator-word" },
+    { "include": "#builtin-function" },
+    { "include": "#type" },
+    { "include": "#function-call" },
+    { "include": "#operator" },
+    { "include": "#punctuation" }
+  ],
+  "repository": {
+    "comment": {
+      "name": "comment.line.number-sign.yasniy",
+      "begin": "#",
+      "end": "$",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.comment.yasniy" }
+      }
+    },
+
+    "string": {
+      "name": "string.quoted.double.yasniy",
+      "begin": "\"",
+      "end": "\"",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.string.begin.yasniy" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.string.end.yasniy" }
+      },
+      "patterns": [
+        {
+          "name": "constant.character.escape.yasniy",
+          "match": "\\\\[ntr\"\\\\]"
+        }
+      ]
+    },
+
+    "number": {
+      "patterns": [
+        {
+          "name": "constant.numeric.float.yasniy",
+          "match": "(?<!\\w)\\d+\\.\\d+(?!\\w)"
+        },
+        {
+          "name": "constant.numeric.integer.yasniy",
+          "match": "(?<!\\w)\\d+(?!\\w|\\.\\d)"
+        }
+      ]
+    },
+
+    "constant": {
+      "patterns": [
+        {
+          "name": "constant.language.boolean.true.yasniy",
+          "match": "(?<!\\w)истина(?!\\w)"
+        },
+        {
+          "name": "constant.language.boolean.false.yasniy",
+          "match": "(?<!\\w)ложь(?!\\w)"
+        },
+        {
+          "name": "constant.language.null.yasniy",
+          "match": "(?<!\\w)пусто(?!\\w)"
+        }
+      ]
+    },
+
+    "import-statement": {
+      "patterns": [
+        {
+          "name": "meta.import.yasniy",
+          "match": "(?<!\\w)(из)\\s+(\"[^\"]*\")\\s+(подключить)(?!\\w)",
+          "captures": {
+            "1": { "name": "keyword.control.import.yasniy" },
+            "2": { "name": "string.quoted.double.yasniy" },
+            "3": { "name": "keyword.control.import.yasniy" }
+          }
+        },
+        {
+          "name": "meta.import.yasniy",
+          "match": "(?<!\\w)(подключить)\\s+(\"[^\"]*\")(?!\\w)",
+          "captures": {
+            "1": { "name": "keyword.control.import.yasniy" },
+            "2": { "name": "string.quoted.double.yasniy" }
+          }
+        },
+        {
+          "name": "keyword.control.import.yasniy",
+          "match": "(?<!\\w)(подключить|из|как)(?!\\w)"
+        }
+      ]
+    },
+
+    "function-definition": {
+      "patterns": [
+        {
+          "name": "meta.function.yasniy",
+          "match": "(?<!\\w)(экспорт)\\s+(асинхронная)\\s+(функция)\\s+(\\w+)",
+          "captures": {
+            "1": { "name": "keyword.control.export.yasniy" },
+            "2": { "name": "keyword.control.async.yasniy" },
+            "3": { "name": "keyword.control.function.yasniy" },
+            "4": { "name": "entity.name.function.yasniy" }
+          }
+        },
+        {
+          "name": "meta.function.yasniy",
+          "match": "(?<!\\w)(экспорт)\\s+(функция)\\s+(\\w+)",
+          "captures": {
+            "1": { "name": "keyword.control.export.yasniy" },
+            "2": { "name": "keyword.control.function.yasniy" },
+            "3": { "name": "entity.name.function.yasniy" }
+          }
+        },
+        {
+          "name": "meta.function.yasniy",
+          "match": "(?<!\\w)(асинхронная)\\s+(функция)\\s+(\\w+)",
+          "captures": {
+            "1": { "name": "keyword.control.async.yasniy" },
+            "2": { "name": "keyword.control.function.yasniy" },
+            "3": { "name": "entity.name.function.yasniy" }
+          }
+        },
+        {
+          "name": "meta.function.yasniy",
+          "match": "(?<!\\w)(функция)\\s+(\\w+)",
+          "captures": {
+            "1": { "name": "keyword.control.function.yasniy" },
+            "2": { "name": "entity.name.function.yasniy" }
+          }
+        }
+      ]
+    },
+
+    "function-parameters": {
+      "match": "(\\w+)\\s*(:)",
+      "captures": {
+        "1": { "name": "variable.parameter.yasniy" },
+        "2": { "name": "punctuation.separator.colon.yasniy" }
+      }
+    },
+
+    "keyword-declaration": {
+      "patterns": [
+        {
+          "name": "keyword.control.function.yasniy",
+          "match": "(?<!\\w)(функция|асинхронная)(?!\\w)"
+        },
+        {
+          "name": "keyword.control.export.yasniy",
+          "match": "(?<!\\w)экспорт(?!\\w)"
+        },
+        {
+          "name": "keyword.control.declaration.yasniy",
+          "match": "(?<!\\w)пусть(?!\\w)"
+        }
+      ]
+    },
+
+    "keyword-flow": {
+      "patterns": [
+        {
+          "name": "keyword.control.flow.yasniy",
+          "match": "(?<!\\w)(вернуть|прервать|продолжить|ждать)(?!\\w)"
+        }
+      ]
+    },
+
+    "keyword-control": {
+      "patterns": [
+        {
+          "name": "keyword.control.conditional.yasniy",
+          "match": "(?<!\\w)(если|иначе)(?!\\w)"
+        },
+        {
+          "name": "keyword.control.loop.yasniy",
+          "match": "(?<!\\w)(пока|для|в)(?!\\w)"
+        }
+      ]
+    },
+
+    "keyword-operator-word": {
+      "patterns": [
+        {
+          "name": "keyword.operator.logical.yasniy",
+          "match": "(?<!\\w)(и|или|не)(?!\\w)"
+        }
+      ]
+    },
+
+    "builtin-function": {
+      "patterns": [
+        {
+          "match": "(?<!\\w)(печать|длина|диапазон|ввод|пауза|строка|число|дробное|добавить|удалить|ключи|содержит|запустить|готово|ожидать|ожидать_все|отменить|файл_читать|файл_записать|файл_существует|файл_удалить|json_разобрать|json_строка|http_get|http_post|время_мс|случайное_цел|утверждать|утверждать_равно|провал)\\s*(?=\\()",
+          "captures": {
+            "1": { "name": "support.function.builtin.yasniy" }
+          }
+        }
+      ]
+    },
+
+    "type": {
+      "patterns": [
+        {
+          "name": "support.type.yasniy",
+          "match": "(?<!\\w)(Цел|Дроб|Лог|Строка|Пусто|Любой|Задача|Список|Словарь)(?!\\w)"
+        }
+      ]
+    },
+
+    "function-call": {
+      "patterns": [
+        {
+          "match": "(?<!\\w)(\\w+)\\s*(?=\\()",
+          "captures": {
+            "1": { "name": "entity.name.function.call.yasniy" }
+          }
+        }
+      ]
+    },
+
+    "operator": {
+      "patterns": [
+        {
+          "name": "keyword.operator.arrow.yasniy",
+          "match": "->"
+        },
+        {
+          "name": "keyword.operator.comparison.yasniy",
+          "match": "==|!=|<=|>="
+        },
+        {
+          "name": "keyword.operator.arithmetic.yasniy",
+          "match": "[+\\-*/%]"
+        },
+        {
+          "name": "keyword.operator.assignment.yasniy",
+          "match": "="
+        },
+        {
+          "name": "keyword.operator.comparison.yasniy",
+          "match": "[<>]"
+        },
+        {
+          "name": "keyword.operator.type.yasniy",
+          "match": "[|?]"
+        }
+      ]
+    },
+
+    "punctuation": {
+      "patterns": [
+        {
+          "name": "punctuation.bracket.round.yasniy",
+          "match": "[()]"
+        },
+        {
+          "name": "punctuation.bracket.square.yasniy",
+          "match": "[\\[\\]]"
+        },
+        {
+          "name": "punctuation.bracket.curly.yasniy",
+          "match": "[{}]"
+        },
+        {
+          "name": "punctuation.separator.colon.yasniy",
+          "match": ":"
+        },
+        {
+          "name": "punctuation.separator.comma.yasniy",
+          "match": ","
+        },
+        {
+          "name": "punctuation.accessor.dot.yasniy",
+          "match": "\\."
+        }
+      ]
+    }
+  }
+}

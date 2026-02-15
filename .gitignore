@@ -1,24 +1,42 @@
-﻿# Build artifacts
+# ===========================================
+# Исключено: остаются только распространение,
+# документация и установщик компилятора
+# ===========================================
+
+# Разработка и тесты
+Calc/
+tests/
 build/
-dist/
+
+# Артефакты сборки
 **/bin/
 **/obj/
-
-# Generated YASN artifacts
 *.ybc
 *.yapp
-
-# Local dependency cache
 .yasn/deps/
 
-# Environment files
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Локальные настройки
 .env
 .env.*
 
-# IDE/editor and OS files
+# IDE и ОС
 .vscode/
 .idea/
 *.iml
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# NuGet (не путать с packages/ui-kit, packages/ui-sdk — это распространение)
+*.nupkg
+*.snupkg
+project.lock.json
+project.fragment.lock.json
+artifacts/

@@ -1,4 +1,4 @@
-﻿using System.Security.Cryptography;
+using System.Security.Cryptography;
 using System.Text;
 using YasnNative.Config;
 
@@ -727,7 +727,11 @@ internal sealed class AliasRewriter
         return stmt switch
         {
             VarDeclStmt vd => vd with { Value = RewriteExpr(vd.Value) },
-            AssignStmt assign => assign with { Value = RewriteExpr(assign.Value) },
+            AssignStmt assign => assign with
+            {
+                Name = _importNameMap.TryGetValue(assign.Name, out var mappedName) ? mappedName : assign.Name,
+                Value = RewriteExpr(assign.Value),
+            },
             IndexAssignStmt idx => idx with
             {
                 Target = RewriteExpr(idx.Target),

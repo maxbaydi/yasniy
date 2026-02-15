@@ -60,6 +60,15 @@ public static class BackendServer
                 return;
             }
 
+            if (path == "/schema")
+            {
+                SendOk(ctx.Response, new Dictionary<string, object?>
+                {
+                    ["functions"] = FunctionSchemaBuilder.ToJsonList(backend.ListSchema()),
+                });
+                return;
+            }
+
             if (path == "/call" && request.HttpMethod == "POST")
             {
                 var body = ReadJsonBody(request);
