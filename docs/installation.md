@@ -1,88 +1,77 @@
-﻿# Установка `yasn`
+﻿---
+layout: default
+title: Установка
+---
 
-Ниже описан нативный способ установки компилятора/рантайма ЯСНЫЙ без Python.
+# Установка `yasn`
 
-## 1. Требования
+## Быстрый выбор
 
-Для сборки из исходников нужен .NET SDK 10.0+.
+- Если вы на Windows и хотите самый простой путь: используйте установщик из Releases.
+- Если вы на Linux/macOS: используйте `scripts/install-global.sh`.
+- Если не хотите глобальную установку: запускайте через `dotnet run` из исходников.
 
-Проверка:
+## Windows (рекомендуется)
 
-```powershell
-dotnet --version
-```
-
-## 2. Windows (рекомендуемый путь)
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/install-global.ps1
-```
-
-Скрипт:
-
-- публикует self-contained бинарник `yasn.exe`;
-- копирует его в `%LOCALAPPDATA%\yasn\bin`;
-- добавляет этот каталог в User PATH (если отсутствует);
-- обновляет PATH в текущей сессии.
-
-Проверка:
+1. Скачайте `Yasn-Setup-x.x.x.exe`:
+   - https://github.com/yasniy/yasniy/releases
+2. Запустите установщик.
+3. Откройте новый терминал.
+4. Проверьте установку:
 
 ```powershell
 yasn --help
 yasn version
 ```
 
-## 3. Linux/macOS
+Что делает установщик:
+- добавляет `yasn` в PATH;
+- размещает бинарники в `%LOCALAPPDATA%\Yasn\bin`;
+- копирует `ui-sdk`/`ui-kit` в `%LOCALAPPDATA%\Yasn\packages\`.
+
+## Linux/macOS
 
 ```bash
 bash scripts/install-global.sh
-```
-
-Скрипт:
-
-- публикует self-contained бинарник для текущей ОС/архитектуры;
-- устанавливает его в `~/.local/share/yasn/toolchain/<runtime>/yasn`;
-- создаёт/обновляет `~/.local/bin/yasn`.
-
-Проверка:
-
-```bash
 yasn --help
 yasn version
 ```
 
-Если `yasn` не найден, добавьте `~/.local/bin` в `PATH`.
+Если команда не находится, добавьте каталог с бинарником в PATH (например, `~/.local/bin`).
 
-## 4. Ручная публикация
+## Запуск из исходников (без установки)
 
-Windows x64:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/publish-native.ps1 -Runtime win-x64
-```
-
-После публикации бинарник находится в:
-
-`native/yasn-native/bin/Release/net10.0/win-x64/publish/yasn.exe`
-
-Linux x64:
-
-```bash
-dotnet publish native/yasn-native/yasn-native.csproj \
-  -c Release -r linux-x64 --self-contained true \
-  /p:PublishSingleFile=true /p:PublishTrimmed=false
-```
-
-macOS arm64:
-
-```bash
-dotnet publish native/yasn-native/yasn-native.csproj \
-  -c Release -r osx-arm64 --self-contained true \
-  /p:PublishSingleFile=true /p:PublishTrimmed=false
-```
-
-## 5. Запуск без глобальной установки
+Требуется `.NET SDK 10.0+`.
 
 ```powershell
-dotnet run --project native/yasn-native/yasn-native.csproj -- run examples/тест.яс
+dotnet run --project native/yasn-native/yasn-native.csproj -- --help
 ```
+
+Запуск файла:
+
+```powershell
+dotnet run --project native/yasn-native/yasn-native.csproj -- run examples/витрина.яс
+```
+
+## UI-пакеты после установки
+
+При установке через Windows installer доступны локальные пакеты UI:
+- `%LOCALAPPDATA%/Yasn/packages/ui-sdk`
+- `%LOCALAPPDATA%/Yasn/packages/ui-kit`
+
+Пример подключения в `package.json`:
+
+```json
+{
+  "dependencies": {
+    "@yasn/ui-sdk": "file:%LOCALAPPDATA%/Yasn/packages/ui-sdk",
+    "@yasn/ui-kit": "file:%LOCALAPPDATA%/Yasn/packages/ui-kit"
+  }
+}
+```
+
+## Что делать дальше
+
+- Первый запуск за 5 минут: [quickstart.md](quickstart.md)
+- Полный список команд: [cli-reference.md](cli-reference.md)
+- Типовые проблемы: [troubleshooting.md](troubleshooting.md)

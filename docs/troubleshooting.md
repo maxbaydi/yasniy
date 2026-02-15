@@ -1,22 +1,21 @@
+---
+layout: default
+title: Troubleshooting и диагностика
+---
+
 # Troubleshooting и диагностика
 
 ## 1. `yasn` не распознан как команда
 
-Установите глобально:
+**Windows:** установите через [Yasn-Setup-x.x.x.exe](https://github.com/yasniy/yasniy/releases). Убедитесь, что отмечено «Добавить в PATH».
 
-Windows:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/install-global.ps1
-```
-
-Linux/macOS:
+**Linux/macOS:**
 
 ```bash
 bash scripts/install-global.sh
 ```
 
-Проверьте:
+Проверьте в новом терминале:
 
 ```powershell
 yasn --help

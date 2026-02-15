@@ -1,0 +1,6 @@
+﻿title: ЯСНЫЙ — Документация
+description: Документация языка ЯСНЫЙ и нативного toolchain
+theme: jekyll-theme-cayman
+markdown: kramdown
+plugins:
+  - jekyll-seo-tag

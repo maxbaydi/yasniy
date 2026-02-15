@@ -1,3 +1,8 @@
+---
+layout: default
+title: UI Contract and Runtime
+---
+
 # UI Contract and Runtime
 
 This document defines the stable UI contract for YASN applications.

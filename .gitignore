@@ -12,6 +12,8 @@ taskboard-app/
 # Артефакты сборки
 **/bin/
 **/obj/
+installer/staging/
+installer/dist/
 *.ybc
 *.yapp
 .yasn/deps/

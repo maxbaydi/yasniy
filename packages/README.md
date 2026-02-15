@@ -5,7 +5,18 @@ Local UI packages that are intentionally separate from YASN language dependencie
 - `@yasn/ui-sdk` in `packages/ui-sdk` — data/contract, client, hooks
 - `@yasn/ui-kit` in `packages/ui-kit` — visual blocks and UX
 
-Install from local paths in your frontend app:
+**Через установщик** (рекомендуется):
+
+```json
+{
+  "dependencies": {
+    "@yasn/ui-sdk": "file:%LOCALAPPDATA%/Yasn/packages/ui-sdk",
+    "@yasn/ui-kit": "file:%LOCALAPPDATA%/Yasn/packages/ui-kit"
+  }
+}
+```
+
+**Из репозитория** (при разработке):
 
 ```json
 {

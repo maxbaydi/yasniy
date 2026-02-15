@@ -1,4 +1,9 @@
-﻿# Нативный toolchain YASN
+---
+layout: default
+title: Нативный toolchain YASN
+---
+
+# Нативный toolchain YASN
 
 Этот документ описывает самостоятельный нативный стек `native/yasn-native`.
 

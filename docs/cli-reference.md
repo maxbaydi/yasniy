@@ -1,3 +1,8 @@
+﻿---
+layout: default
+title: CLI справочник
+---
+
 # CLI справочник `yasn`
 
 Показать встроенную справку:
@@ -6,13 +11,15 @@
 yasn --help
 ```
 
-Общий вид:
+Общий формат:
 
 ```text
 yasn <команда> [аргументы]
 ```
 
-## `run`
+## Базовые команды (ежедневный цикл)
+
+### `run`
 
 Запуск `.яс` файла:
 
@@ -20,55 +27,21 @@ yasn <команда> [аргументы]
 yasn run app.яс
 ```
 
-Запуск проектных режимов:
+Режимы проекта из `yasn.toml`:
 
 ```powershell
 yasn run dev
 yasn run start
 ```
 
-Опции для `dev/start`:
-
-```text
---backend <path>
---host <host>
---port <port>
-```
-
-## `dev` и `start`
-
-Короткие команды, эквивалентные `yasn run dev` и `yasn run start`:
+Короткие эквиваленты:
 
 ```powershell
-yasn dev --backend backend/main.яс --port 8000
+yasn dev
 yasn start
 ```
 
-## `serve`
-
-Запуск HTTP backend поверх файла ЯСНЫЙ:
-
-```powershell
-yasn serve backend/main.яс --host 127.0.0.1 --port 8000
-```
-
-HTTP API:
-
-- `GET /health`
-- `GET /functions`
-- `POST /call`
-
-Пример запроса `POST /call`:
-
-```json
-{
-  "function": "сумма",
-  "args": [2, 3],
-  "reset_state": true
-}
-```
-
-## `check`
+### `check`
 
 Проверка исходника (синтаксис + модульный резолвинг + type checker):
 
@@ -76,9 +49,9 @@ HTTP API:
 yasn check app.яс
 ```
 
-## `test`
+### `test`
 
-Запуск тестов `.яс`:
+Запуск тестов:
 
 ```powershell
 yasn test
@@ -87,167 +60,123 @@ yasn test tests --pattern "*_test.яс"
 yasn test --fail-fast --verbose
 ```
 
-По умолчанию ищет шаблоны:
+### `build` и `exec`
 
-- `*_test.яс`
-- `*.test.яс`
-
-Если передан файл, запускается только он.
-
-## `build`
-
-Компиляция в `.ybc`:
+Компиляция в `.ybc` и запуск:
 
 ```powershell
-yasn build app.яс
-yasn build app.яс -o out.ybc
+yasn build app.яс -o app.ybc
+yasn exec app.ybc
 ```
 
-## `exec`
+## Backend и web runtime
 
-Запуск `.ybc`:
+### `serve`
+
+Запуск HTTP backend поверх файла ЯСНЫЙ:
 
 ```powershell
-yasn exec out.ybc
+yasn serve backend/main.яс --host 127.0.0.1 --port 8000
 ```
 
-## `pack`
+Базовые endpoint'ы:
+- `GET /health`
+- `GET /functions`
+- `GET /schema`
+- `POST /call`
+
+### `pack` и `run-app`
 
 Упаковка в `.yapp`:
 
 ```powershell
-yasn pack app.яс
 yasn pack app.яс -o app.yapp
-yasn pack app.яс --name my_app
 ```
 
-Без `--name` имя берётся из `yasn.toml` (`[app].name`, затем `[app].displayName`, затем имя файла).
-
-## `run-app`
-
-Запуск `.yapp`:
+Запуск собранного приложения:
 
 ```powershell
 yasn run-app app.yapp
 ```
 
-## `install-app`
+Если в `.yapp` встроен UI (`--ui-dist`), web runtime поднимает:
+- статические файлы UI;
+- API под `/api/*` (`/api/functions`, `/api/schema`, `/api/call`).
 
-Установка `.яс` приложения как пользовательской команды:
+## Установка приложения как команды
+
+### `install-app`
 
 ```powershell
 yasn install-app app.яс --name my_app
 ```
 
-Без `--name` команда берётся из `yasn.toml` (`[app].name`, затем `[app].displayName`, затем имя файла).
+После установки команда `my_app` запускает соответствующий `.yapp`.
 
-Windows создаёт:
+## Зависимости проекта
 
-- `%LOCALAPPDATA%\yasn\apps\my_app.yapp`
-- `%LOCALAPPDATA%\yasn\bin\my_app.cmd`
-- `%LOCALAPPDATA%\yasn\bin\my_app` (Git Bash/MSYS2)
+### `deps`
 
-Linux/macOS создаёт:
+```powershell
+yasn deps
+yasn deps install
+yasn deps install --clean
+yasn deps list
+yasn deps list --all
+```
 
-- `~/.yasn/apps/my_app.yapp`
-- `~/.yasn/bin/my_app`
+Поддерживаемые источники:
+- `git+https://...repo.git#tag`
+- `path:../local/path`
+- `../local/path` (шорткат для `path:`)
 
-## `paths`
+Lock-файл: `.yasn/deps.lock.json`.
 
-Показ рабочих каталогов:
+## Служебные команды
+
+### `paths`
 
 ```powershell
 yasn paths
 yasn paths --short
 ```
 
-## `deps`
-
-Управление секцией `[dependencies]` из `yasn.toml`.
-
-Установка зависимостей:
-
-```powershell
-yasn deps
-yasn deps install
-yasn deps install --clean
-```
-
-Проверка статуса:
-
-```powershell
-yasn deps list
-yasn deps list --all
-```
-
-Поддерживаемые источники:
-
-- `git+https://...repo.git#v1.2.3`
-- `path:../relative/or/absolute/path`
-- `../relative/or/absolute/path` (шорткат для `path:`)
-
-Lock-файл хранится в `.yasn/deps.lock.json`.
-
-## `version`
+### `version`
 
 ```powershell
 yasn version
 ```
 
+## Типовые сценарии
+
+### Сценарий 1: «написал и запустил»
+
+```powershell
+yasn check app.яс
+yasn run app.яс
+```
+
+### Сценарий 2: «прогнал тесты перед коммитом»
+
+```powershell
+yasn test
+```
+
+### Сценарий 3: «собрал приложение с UI»
+
+```powershell
+yasn pack backend/main.яс -o app.yapp --ui-dist ui/dist
+yasn run-app app.yapp
+```
+
 ## Коды возврата
 
-- `0` — успех
-- `1` — ошибка выполнения/компиляции/тестов
-- `2` — ошибка аргументов CLI
+- `0`: успешно
+- `1`: ошибка выполнения/компиляции/тестов
+- `2`: ошибка аргументов CLI
 
-## UI Contract Addendum (2026-02-15)
+## Связанные документы
 
-Backend/UI contract endpoints:
-
-- `GET /functions`
-- `GET /schema`
-- `POST /call`
-
-`run-app` serves the same contract under `/api/*`.
-
-### Schema v2
-
-`GET /schema` now returns:
-
-- `data.schemaVersion = 2`
-- typed metadata for each function (`typeNode`, `returnTypeNode`, `ui`, `isPublicApi`)
-- legacy string fields (`type`, `returnType`, `signature`) for backward compatibility
-
-### Public API exposure rules
-
-Only public UI API functions are exposed:
-
-- `main` is hidden
-- internal `__мод_*` functions are hidden
-- if exports are present, only `экспорт` functions are exposed
-
-### `/call` payload
-
-`POST /call` supports either positional or named arguments:
-
-```json
-{
-  "function": "sum",
-  "args": [1, 2],
-  "reset_state": false,
-  "await_result": true
-}
-```
-
-```json
-{
-  "function": "sum",
-  "named_args": { "a": 1, "b": 2 },
-  "reset_state": false,
-  "await_result": true
-}
-```
-
-`await_result = false` returns async task handle instead of waiting for function result.
-
-Validation happens before VM call. Typical errors: `invalid_request`, `invalid_arguments`, `unknown_function`, `method_not_allowed`.
+- [quickstart.md](quickstart.md)
+- [packaging-and-run.md](packaging-and-run.md)
+- [ui-contract.md](ui-contract.md)

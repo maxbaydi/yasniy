@@ -1,0 +1,43 @@
+name: Build Installer
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Publish yasn
+        run: |
+          dotnet publish native/yasn-native/yasn-native.csproj `
+            -c Release -r win-x64 --self-contained true `
+            /p:PublishSingleFile=true /p:PublishTrimmed=false
+
+      - name: Prepare staging
+        run: |
+          New-Item -ItemType Directory -Force -Path installer/staging/bin | Out-Null
+          New-Item -ItemType Directory -Force -Path installer/staging/packages | Out-Null
+          Copy-Item native/yasn-native/bin/Release/net10.0/win-x64/publish/yasn.exe installer/staging/bin/
+          robocopy packages/ui-sdk installer/staging/packages/ui-sdk /E /XD node_modules /NFL /NDL /NJH /NJS /nc /ns /np
+          if ($LASTEXITCODE -ge 8) { exit 1 }
+          robocopy packages/ui-kit installer/staging/packages/ui-kit /E /XD node_modules /NFL /NDL /NJH /NJS /nc /ns /np
+          if ($LASTEXITCODE -ge 8) { exit 1 }
+
+      - name: Compile Inno Setup
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer/yasn.iss
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: Yasn-Setup
+          path: installer/dist/Yasn-Setup-*.exe

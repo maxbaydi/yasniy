@@ -1,0 +1,50 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-installer:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Publish yasn
+        run: |
+          dotnet publish native/yasn-native/yasn-native.csproj `
+            -c Release -r win-x64 --self-contained true `
+            /p:PublishSingleFile=true /p:PublishTrimmed=false
+
+      - name: Set version from tag
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          (Get-Content installer/yasn.iss) -replace 'MyAppVersion "[\d.]+"', "MyAppVersion `"$version`"" | Set-Content installer/yasn.iss
+
+      - name: Prepare staging
+        run: |
+          New-Item -ItemType Directory -Force -Path installer/staging/bin | Out-Null
+          New-Item -ItemType Directory -Force -Path installer/staging/packages | Out-Null
+          Copy-Item native/yasn-native/bin/Release/net10.0/win-x64/publish/yasn.exe installer/staging/bin/
+          robocopy packages/ui-sdk installer/staging/packages/ui-sdk /E /XD node_modules /NFL /NDL /NJH /NJS /nc /ns /np
+          if ($LASTEXITCODE -ge 8) { exit 1 }
+          robocopy packages/ui-kit installer/staging/packages/ui-kit /E /XD node_modules /NFL /NDL /NJH /NJS /nc /ns /np
+          if ($LASTEXITCODE -ge 8) { exit 1 }
+
+      - name: Compile Inno Setup
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer/yasn.iss
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: installer/dist/Yasn-Setup-*.exe
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,14 +1,23 @@
-привет
+﻿---
+layout: default
+title: Быстрый старт
+---
 
-приветри
+# Быстрый старт
 
-привет# Быстрый старт
+Цель: за 5–10 минут пройти путь от исходника до запуска приложения.
 
-Сценарий проходит путь: исходник -> проверка -> запуск -> тесты -> байткод -> приложение.
+## 0. Убедитесь, что `yasn` установлен
+
+```powershell
+yasn --help
+```
+
+Если команда не найдена: [installation.md](installation.md).
 
 ## 1. Создайте программу
 
-`привет.яс`:
+Файл `привет.яс`:
 
 ```text
 функция main() -> Пусто:
@@ -16,21 +25,25 @@
     вернуть пусто
 ```
 
-## 2. Проверка
+## 2. Проверьте код
 
 ```powershell
 yasn check привет.яс
 ```
 
-## 3. Запуск
+Аналогия: как `tsc --noEmit` или `mypy` — проверка до запуска.
+
+## 3. Запустите
 
 ```powershell
 yasn run привет.яс
 ```
 
-## 4. Добавьте простой тест
+Аналогия: как `python app.py` / `go run main.go`.
 
-`tests/привет_тест.яс`:
+## 4. Добавьте и запустите тесты
+
+Файл `tests/привет_test.яс`:
 
 ```text
 функция main() -> Пусто:
@@ -38,59 +51,29 @@ yasn run привет.яс
     вернуть пусто
 ```
 
-Запуск тестов:
+Запуск:
 
 ```powershell
 yasn test
 ```
 
-## 5. Сборка байткода
+## 5. Соберите артефакт
 
 ```powershell
 yasn build привет.яс -o привет.ybc
-```
-
-## 6. Запуск байткода
-
-```powershell
 yasn exec привет.ybc
 ```
 
-## 7. Упаковка приложения
+## 6. Упакуйте приложение
 
 ```powershell
-yasn pack привет.яс -o привет.yapp --name привет_приложение
+yasn pack привет.яс -o привет.yapp --name привет
 yasn run-app привет.yapp
 ```
 
-## 8. Установка как команды
+Это уже собранное приложение, которое можно переносить и запускать как единый артефакт.
 
-```powershell
-yasn install-app привет.яс --name привет
-привет
-```
-
-## 9. Примеры из репозитория
-
-```powershell
-yasn run examples/тест.яс
-yasn run examples/функции.яс
-yasn run examples/модули.яс
-yasn run examples/алиасы_и_namespace.яс
-yasn run examples/асинхронность.яс
-yasn test
-```
-
-## 10. Зависимости проекта
-
-Если в `yasn.toml` есть `[dependencies]`:
-
-```powershell
-yasn deps
-yasn deps list --all
-```
-
-## 11. Backend одной командой
+## 7. Запуск backend из `yasn.toml`
 
 `yasn.toml`:
 
@@ -107,51 +90,28 @@ port = 8000
 yasn run dev
 ```
 
-## 12. Запуск без глобальной установки
+## 8. Добавление React UI (опционально)
 
-```powershell
-dotnet run --project native/yasn-native/yasn-native.csproj -- run привет.яс
-```
-
-## 13. UI bundle and auto-generated forms
-
-1. Build your frontend to `ui/dist`.
-2. Pack app with embedded UI:
+1. Соберите frontend в `ui/dist`.
+2. Упакуйте backend + UI:
 
 ```powershell
 yasn pack backend/main.яс -o app.yapp --ui-dist ui/dist
 ```
 
-3. Run packaged app:
+3. Запустите приложение:
 
 ```powershell
 yasn run-app app.yapp --port 8080
 ```
 
-UI should call only:
-
+UI в `run-app` режиме должен ходить в API через `/api/*`:
 - `GET /api/functions`
 - `GET /api/schema`
 - `POST /api/call`
 
-See `docs/ui-contract.md` for response format and SDK usage.
+## Куда дальше
 
-## 14. UI schema v2 tips
-
-Current UI contract provides machine-readable schema (`schemaVersion = 2`):
-
-- `typeNode` and `returnTypeNode` for typed form generation
-- `ui` hints for field controls
-- `isPublicApi` exposure flag
-
-`POST /api/call` accepts either `args` or `named_args`:
-
-```json
-{
-  "function": "sum",
-  "named_args": { "a": 2, "b": 3 },
-  "await_result": true
-}
-```
-
-Set `await_result: false` to receive async task handle immediately.
+- Учебник: [language-tutorial.md](language-tutorial.md)
+- CLI: [cli-reference.md](cli-reference.md)
+- Контракт UI: [ui-contract.md](ui-contract.md)
